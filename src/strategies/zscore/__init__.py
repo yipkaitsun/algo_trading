@@ -1,0 +1,3 @@
+"""
+Zscore strategy package.
+""" 
