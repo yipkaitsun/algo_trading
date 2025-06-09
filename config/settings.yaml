@@ -1,0 +1,37 @@
+# Trading Strategy Configuration
+strategy:
+  # Moving Average Crossover Strategy Parameters
+  lookback_period: 20
+  entry_threshold: 0.02
+  exit_threshold: -0.01
+  position_size: 1.0
+
+# Data Configuration
+data:
+  # Data source configuration
+  source: "csv"  # Options: csv, api, database
+  symbols:
+    - "AAPL"
+    - "MSFT"
+    - "GOOGL"
+  timeframe: "1d"  # Daily timeframe
+  start_date: "2023-01-01"
+  end_date: "2024-01-01"
+
+# Trading Parameters
+trading:
+  initial_capital: 100000
+  commission: 0.001  # 0.1% commission per trade
+  slippage: 0.0005  # 0.05% slippage
+
+# Risk Management
+risk:
+  max_position_size: 0.1  # Maximum 10% of portfolio per position
+  stop_loss: 0.02  # 2% stop loss
+  take_profit: 0.05  # 5% take profit
+
+# Logging Configuration
+logging:
+  level: "INFO"
+  file: "logs/trading.log"
+  console: true

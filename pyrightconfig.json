@@ -1,0 +1,13 @@
+{
+    "include": [
+        "src"
+    ],
+    "exclude": [
+        "**/node_modules",
+        "**/__pycache__"
+    ],
+    "pythonVersion": "3.11",
+    "pythonPlatform": "Windows",
+    "venvPath": ".",
+    "venv": "venv"
+} 
