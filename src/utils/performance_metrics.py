@@ -9,23 +9,6 @@ from typing import Dict, Any
 class PerformanceMetrics:
     @staticmethod
     def calculate_metrics(data: pd.DataFrame) -> Dict[str, float]:
-        """
-        Calculate various performance metrics for a trading strategy.
-        
-        Args:
-            data (pd.DataFrame): DataFrame containing at least 'signal' and 'chg' columns
-                - 'signal': Trading signals (1 for long, -1 for short, 0 for no position)
-                - 'chg': Price changes (returns)
-        
-        Returns:
-            Dict[str, float]: Dictionary containing performance metrics
-                - sharpe_ratio: Risk-adjusted return metric
-                - annual_return: Annualized return
-                - max_drawdown: Maximum drawdown
-                - calmar_ratio: Return to drawdown ratio
-                - win_rate: Percentage of profitable trades
-                - profit_factor: Ratio of gross profits to gross losses
-        """
         df = data.copy()
         
         # Calculate PnL
@@ -38,7 +21,7 @@ class PerformanceMetrics:
         df['bnh_cumu'] = df['chg'].cumsum()
         
         # Basic metrics
-        sharpe = round(df['pnl'].mean() / df['pnl'].std() * np.sqrt(365), 2)
+        sharpe = round(df['pnl'].mean() / df['pnl'].std() * np.sqrt(365*24), 2)
         annual_return = round(df['pnl'].mean() * 365, 2)
         mdd = df['dd'].max()
         calmar = round(annual_return / mdd, 2) if mdd != 0 else 0

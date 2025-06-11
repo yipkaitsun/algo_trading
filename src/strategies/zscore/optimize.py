@@ -12,17 +12,6 @@ def load_config():
         return yaml.safe_load(file)
 
 def optimize_threshold(df, windows, thresholds):
-    """
-    Optimize the z-score threshold and window size by testing different combinations.
-    
-    Args:
-        df (pd.DataFrame): Price data
-        windows (list): List of window sizes to test
-        thresholds (list): List of threshold values to test
-    
-    Returns:
-        pd.DataFrame: Results for each threshold and window combination
-    """
     results = []
     
     for window in windows:
@@ -98,80 +87,84 @@ def plot_results(results):
     plt.savefig(plot_path, dpi=300, bbox_inches='tight')
     plt.close()
 
-def main():
-    # Load data
+
+def print_best_parameters(results, metric_name, metric_key, is_min=False):
+    """Print the best parameters for a given metric."""
+    if is_min:
+        best_params = results.loc[results[metric_key].idxmin()]
+    else:
+        best_params = results.loc[results[metric_key].idxmax()]
+    
+    print(f"\nBest Parameters by {metric_name}:")
+    print(f"Window Size: {best_params['window']}")
+    print(f"Sharpe Ratio: {best_params['sharpe_ratio']:.2f}")
+    print(f"Annual Return: {best_params['annual_return']:.2f}")
+    print(f"Max Drawdown: {best_params['max_drawdown']:.2f}")
+    print(f"Calmar Ratio: {best_params['calmar_ratio']:.2f}")
+    
+    return best_params
+
+
+def print_optimization_results(results):
+    best_sharpe = print_best_parameters(results, "Sharpe Ratio", "sharpe_ratio")
+    best_return = print_best_parameters(results, "Annual Return", "annual_return")
+    best_drawdown = print_best_parameters(results, "Minimum Drawdown", "max_drawdown", is_min=True)
+    best_calmar = print_best_parameters(results, "Calmar Ratio", "calmar_ratio")
+
+def load_data():
+    """
+    Load and prepare the price data for optimization.
+    
+    Returns:
+        pd.DataFrame: Prepared DataFrame with price data
+    """
     data_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))), 'data', 'BTC_HOURLY.csv')
     df = pd.read_csv(data_path)
     df = df.rename(columns={
         'Date': 'datetime',
         'Close': 'close'
     })
-    
-    # Define parameters to test
+    return df
+
+def setup_parameters():
     windows = np.arange(10, 100, 10)  # Test different window sizes
-    thresholds = np.arange(0, 2.5, 0.25) 
+    thresholds = np.arange(0, 2.5, 0.25)
     
     print(f"\nTesting {len(windows)} window sizes from {windows[0]} to {windows[-1]}")
     print(f"Testing {len(thresholds)} thresholds from {thresholds[0]} to {thresholds[-1]}")
     print(f"Total combinations to test: {len(windows) * len(thresholds)}")
     
-    # Run optimization
-    results = optimize_threshold(df, windows, thresholds)
-    
-    # Print results
-    print("\nOptimization Results:")
-    print("-------------------")
-    
-    # Best parameters based on Sharpe Ratio
-    best_sharpe = results.loc[results['sharpe_ratio'].idxmax()]
-    print("\nBest Parameters by Sharpe Ratio:")
-    print(f"Window Size: {best_sharpe['window']}")
-    print(f"Threshold: {best_sharpe['threshold']:.2f}")
-    print(f"Sharpe Ratio: {best_sharpe['sharpe_ratio']:.2f}")
-    print(f"Annual Return: {best_sharpe['annual_return']:.2f}")
-    print(f"Max Drawdown: {best_sharpe['max_drawdown']:.2f}")
-    print(f"Calmar Ratio: {best_sharpe['calmar_ratio']:.2f}")
-    
-    # Best parameters based on Annual Return
-    best_return = results.loc[results['annual_return'].idxmax()]
-    print("\nBest Parameters by Annual Return:")
-    print(f"Window Size: {best_return['window']}")
-    print(f"Threshold: {best_return['threshold']:.2f}")
-    print(f"Sharpe Ratio: {best_return['sharpe_ratio']:.2f}")
-    print(f"Annual Return: {best_return['annual_return']:.2f}")
-    print(f"Max Drawdown: {best_return['max_drawdown']:.2f}")
-    print(f"Calmar Ratio: {best_return['calmar_ratio']:.2f}")
-    
-    # Best parameters based on Max Drawdown (minimum drawdown)
-    best_drawdown = results.loc[results['max_drawdown'].idxmin()]
-    print("\nBest Parameters by Minimum Drawdown:")
-    print(f"Window Size: {best_drawdown['window']}")
-    print(f"Threshold: {best_drawdown['threshold']:.2f}")
-    print(f"Sharpe Ratio: {best_drawdown['sharpe_ratio']:.2f}")
-    print(f"Annual Return: {best_drawdown['annual_return']:.2f}")
-    print(f"Max Drawdown: {best_drawdown['max_drawdown']:.2f}")
-    print(f"Calmar Ratio: {best_drawdown['calmar_ratio']:.2f}")
-    
-    # Best parameters based on Calmar Ratio
-    best_calmar = results.loc[results['calmar_ratio'].idxmax()]
-    print("\nBest Parameters by Calmar Ratio:")
-    print(f"Window Size: {best_calmar['window']}")
-    print(f"Threshold: {best_calmar['threshold']:.2f}")
-    print(f"Sharpe Ratio: {best_calmar['sharpe_ratio']:.2f}")
-    print(f"Annual Return: {best_calmar['annual_return']:.2f}")
-    print(f"Max Drawdown: {best_calmar['max_drawdown']:.2f}")
-    print(f"Calmar Ratio: {best_calmar['calmar_ratio']:.2f}")
-    
-    # Save results to CSV
+    return windows, thresholds
+
+def save_results(results):
+
     results_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))), 'backtest', 'results')
     os.makedirs(results_dir, exist_ok=True)
+    
+    # Save to CSV
     results_file = os.path.join(results_dir, 'zscore_parameter_optimization_results.csv')
     results.to_csv(results_file, index=False)
     print(f"\nDetailed results saved to '{results_file}'")
     
-    # Plot results
+    # Generate and save plot
     plot_results(results)
     print(f"Plot saved as '{os.path.join(results_dir, 'zscore_parameter_optimization.png')}'")
+
+def main():
+    # Load data
+    df = load_data()
+    
+    # Setup parameters
+    windows, thresholds = setup_parameters()
+    
+    # Run optimization
+    results = optimize_threshold(df, windows, thresholds)
+    
+    # Print results
+    print_optimization_results(results)
+    
+    # Save results
+    save_results(results)
 
 if __name__ == "__main__":
     main() 

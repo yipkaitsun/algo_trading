@@ -28,22 +28,7 @@ def load_config():
         return yaml.safe_load(file)
 
 def calculate_rolling_metrics(returns, window=252):
-    """
-    Calculate rolling performance metrics for a series of returns.
-    
-    Args:
-        returns (pd.Series): Series of returns
-        window (int): Rolling window size (default: 252 for daily data)
-    
-    Returns:
-        tuple: (sharpe_ratio, annual_return, drawdown, calmar_ratio)
-    """
-    # Calculate rolling mean and std for Sharpe ratio
-    rolling_mean = returns.rolling(window=window).mean()
-    rolling_std = returns.rolling(window=window).std()
-    sharpe_ratio = np.sqrt(252) * (rolling_mean / rolling_std)
-    
-    # Calculate annual return
+ 
     annual_return = returns.rolling(window=window).mean() * 252
     
     # Calculate drawdown
@@ -54,7 +39,7 @@ def calculate_rolling_metrics(returns, window=252):
     # Calculate Calmar ratio
     calmar_ratio = annual_return / abs(drawdown.rolling(window=window).min())
     
-    return sharpe_ratio, annual_return, drawdown, calmar_ratio
+    return nnual_return, drawdown, calmar_ratio
 
 def plot_performance_metrics(df, metrics, strategy):
     """
@@ -196,7 +181,7 @@ def main():
     df = strategy.generate_signals(df)
     
     # Calculate returns
-    df['returns'] = df['close'].pct_change()
+    df['returns'] = df['close'].pct_change() * df['signal']
     
     # Calculate rolling metrics
     metrics = calculate_rolling_metrics(df['returns'], window=252)  # Using 252 hours as window
@@ -229,6 +214,3 @@ def main():
     results_file = os.path.join(results_dir, 'rsi_results.csv')
     df.to_csv(results_file, index=False)
     logger.info(f"Detailed results saved to '{results_file}'")
-
-if __name__ == "__main__":
-    main() 

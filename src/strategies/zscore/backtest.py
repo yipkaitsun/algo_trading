@@ -25,20 +25,9 @@ def load_config():
     """Load configuration from settings.yaml"""
     config_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))), 'config', 'settings.yaml')
     with open(config_path, 'r') as file:
-        return yaml.safe_load(file)
+        return yaml.safe_load(file)['strategies']['zscore']
 
 def calculate_rolling_sharpe_ratio(returns, window=252):
-    """
-    Calculate rolling Sharpe ratio for a series of returns.
-    
-    Args:
-        returns (pd.Series): Series of returns
-        window (int): Rolling window size (default: 252 for daily data)
-    
-    Returns:
-        pd.Series: Rolling Sharpe ratio
-    """
-    # Calculate rolling mean and std
     rolling_mean = returns.rolling(window=window).mean()
     rolling_std = returns.rolling(window=window).std()
     
@@ -80,24 +69,13 @@ def plot_sharpe_ratio_curve(df, sharpe_ratios):
     plt.savefig(plot_path, dpi=300, bbox_inches='tight')
     plt.close()
 
-def calculate_rolling_metrics(returns, window=252):
-    """
-    Calculate rolling performance metrics for a series of returns.
-    
-    Args:
-        returns (pd.Series): Series of returns
-        window (int): Rolling window size (default: 252 for daily data)
-    
-    Returns:
-        tuple: (sharpe_ratio, annual_return, drawdown, calmar_ratio)
-    """
-    # Calculate rolling mean and std for Sharpe ratio
+def calculate_rolling_metrics(df):
     rolling_mean = returns.rolling(window=window).mean()
     rolling_std = returns.rolling(window=window).std()
     sharpe_ratio = np.sqrt(252) * (rolling_mean / rolling_std)
     
     # Calculate annual return
-    annual_return = returns.rolling(window=window).mean() * 252
+    annual_return = returns.rolling(window=window).mean() * 365
     
     # Calculate drawdown
     cumulative_returns = (1 + returns).cumprod()
@@ -214,12 +192,8 @@ def plot_performance_metrics(df, metrics, strategy):
     plt.savefig(plot_path, dpi=300, bbox_inches='tight')
     plt.close()
 
-def main():
-    # Load configuration
-    config = load_config()
-    strategy_config = config['strategies']['zscore']
-    
-    # Create strategy instance with parameters from config
+def initialize_strategy():
+    strategy_config = load_config()
     strategy = ZScoreStrategy(
         window=strategy_config['window'],
         threshold=strategy_config['threshold'],
@@ -231,15 +205,48 @@ def main():
     logger.info(f"Threshold: {strategy.threshold}")
     logger.info(f"Position size: {strategy.position_size}")
     
+    return strategy
+
+def load_df(symbol: str = 'BTC_HOURLY') -> pd.DataFrame:
+    data_path = os.path.join(
+        os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))),
+        'data',
+        f'{symbol}.csv'
+    )
+    
+    # Check if file exists
+    if not os.path.exists(data_path):
+        raise FileNotFoundError(f"Data file not found: {data_path}")
+    
     # Load data
-    data_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))), 'data', 'BTC_HOURLY.csv')
+    logger.info(f"Loading data from {data_path}")
     df = pd.read_csv(data_path)
+    
+    # Validate required columns
+    required_columns = ['Date', 'Close']
+    missing_columns = [col for col in required_columns if col not in df.columns]
+    if missing_columns:
+        raise ValueError(f"Missing required columns: {missing_columns}")
     
     # Rename columns to match strategy requirements
     df = df.rename(columns={
         'Date': 'datetime',
         'Close': 'close'
     })
+    
+    # Convert datetime if needed
+    if isinstance(df['datetime'].iloc[0], str):
+        df['datetime'] = pd.to_datetime(df['datetime'])
+    
+    logger.info(f"Successfully loaded {len(df)} rows of data")
+    return df
+
+def main():
+    # Initialize strategy
+    strategy = initialize_strategy()
+    
+    # Load and preprocess data
+    df = load_df()
     
     # Calculate indicators
     df = strategy.calculate_indicators(df)

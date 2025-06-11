@@ -17,18 +17,6 @@ def load_config():
         return yaml.safe_load(file)
 
 def optimize_parameters(df, windows, overbought_levels, oversold_levels):
-    """
-    Optimize RSI parameters by testing different combinations.
-    
-    Args:
-        df (pd.DataFrame): Price data
-        windows (list): List of window sizes to test
-        overbought_levels (list): List of overbought threshold values
-        oversold_levels (list): List of oversold threshold values
-    
-    Returns:
-        pd.DataFrame: Results for each parameter combination
-    """
     results = []
     
     for window in windows:
@@ -151,23 +139,60 @@ def plot_results(results):
     plt.savefig(plot_path, dpi=300, bbox_inches='tight')
     plt.close()
 
-def main():
-    # Load data
+def load_data():
+    """Load and prepare price data for optimization."""
     data_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))), 'data', 'BTC_HOURLY.csv')
     df = pd.read_csv(data_path)
     df = df.rename(columns={
         'Date': 'datetime',
         'Close': 'close'
     })
-    
-    # Define parameters to test
-    windows = np.arange(10, 100, 10) 
+    return df
+
+def setup_parameters():
+    """Define the parameter ranges to test."""
+    windows = np.arange(10, 100, 10)
     overbought_levels = np.arange(10, 100, 5)  # 60, 65, ..., 90
     oversold_levels = 100 - overbought_levels  # 40, 35, ..., 10
-    
+
     print(f"\nTesting {len(windows)} window sizes from {windows[0]} to {windows[-1]}")
     print(f"Testing {len(overbought_levels)} overbought/oversold pairs:")
     print(f"Total combinations to test: {len(windows) * len(overbought_levels)}")
+    return windows, overbought_levels, oversold_levels
+
+def print_best_parameters(results, metric_name, metric_key, is_min=False):
+    """Print the best parameters for a given metric."""
+    if is_min:
+        best_params = results.loc[results[metric_key].idxmin()]
+    else:
+        best_params = results.loc[results[metric_key].idxmax()]
+    
+    print(f"\nBest Parameters by {metric_name}:")
+    print(f"Window Size: {best_params['window']}")
+    print(f"Overbought Level: {best_params['overbought']}")
+    print(f"Oversold Level: {best_params['oversold']}")
+    print(f"Sharpe Ratio: {best_params['sharpe_ratio']:.2f}")
+    print(f"Annual Return: {best_params['annual_return']:.2f}")
+    print(f"Max Drawdown: {best_params['max_drawdown']:.2f}")
+    print(f"Calmar Ratio: {best_params['calmar_ratio']:.2f}")
+    
+    return best_params
+
+def save_results(results):
+    """Save optimization results to CSV file."""
+    results_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))), 'backtest', 'results')
+    os.makedirs(results_dir, exist_ok=True)
+    results_file = os.path.join(results_dir, 'rsi_parameter_optimization_results.csv')
+    results.to_csv(results_file, index=False)
+    print(f"\nDetailed results saved to '{results_file}'")
+    return results_dir
+
+def main():
+    # Load data
+    df = load_data()
+    
+    # Get parameter ranges
+    windows, overbought_levels, oversold_levels = setup_parameters()
     
     # Run optimization
     results = optimize_parameters(df, windows, overbought_levels, oversold_levels)
@@ -176,49 +201,11 @@ def main():
     print("\nOptimization Results:")
     print("-------------------")
     
-    # Best parameters based on Sharpe Ratio
-    best_sharpe = results.loc[results['sharpe_ratio'].idxmax()]
-    print("\nBest Parameters by Sharpe Ratio:")
-    print(f"Window Size: {best_sharpe['window']}")
-    print(f"Overbought Level: {best_sharpe['overbought']}")
-    print(f"Oversold Level: {best_sharpe['oversold']}")
-    print(f"Sharpe Ratio: {best_sharpe['sharpe_ratio']:.2f}")
-    print(f"Annual Return: {best_sharpe['annual_return']:.2f}")
-    print(f"Max Drawdown: {best_sharpe['max_drawdown']:.2f}")
-    print(f"Calmar Ratio: {best_sharpe['calmar_ratio']:.2f}")
-    
-    # Best parameters based on Annual Return
-    best_return = results.loc[results['annual_return'].idxmax()]
-    print("\nBest Parameters by Annual Return:")
-    print(f"Window Size: {best_return['window']}")
-    print(f"Overbought Level: {best_return['overbought']}")
-    print(f"Oversold Level: {best_return['oversold']}")
-    print(f"Sharpe Ratio: {best_return['sharpe_ratio']:.2f}")
-    print(f"Annual Return: {best_return['annual_return']:.2f}")
-    print(f"Max Drawdown: {best_return['max_drawdown']:.2f}")
-    print(f"Calmar Ratio: {best_return['calmar_ratio']:.2f}")
-    
-    # Best parameters based on Max Drawdown (minimum drawdown)
-    best_drawdown = results.loc[results['max_drawdown'].idxmin()]
-    print("\nBest Parameters by Minimum Drawdown:")
-    print(f"Window Size: {best_drawdown['window']}")
-    print(f"Overbought Level: {best_drawdown['overbought']}")
-    print(f"Oversold Level: {best_drawdown['oversold']}")
-    print(f"Sharpe Ratio: {best_drawdown['sharpe_ratio']:.2f}")
-    print(f"Annual Return: {best_drawdown['annual_return']:.2f}")
-    print(f"Max Drawdown: {best_drawdown['max_drawdown']:.2f}")
-    print(f"Calmar Ratio: {best_drawdown['calmar_ratio']:.2f}")
-    
-    # Best parameters based on Calmar Ratio
-    best_calmar = results.loc[results['calmar_ratio'].idxmax()]
-    print("\nBest Parameters by Calmar Ratio:")
-    print(f"Window Size: {best_calmar['window']}")
-    print(f"Overbought Level: {best_calmar['overbought']}")
-    print(f"Oversold Level: {best_calmar['oversold']}")
-    print(f"Sharpe Ratio: {best_calmar['sharpe_ratio']:.2f}")
-    print(f"Annual Return: {best_calmar['annual_return']:.2f}")
-    print(f"Max Drawdown: {best_calmar['max_drawdown']:.2f}")
-    print(f"Calmar Ratio: {best_calmar['calmar_ratio']:.2f}")
+    # Print best parameters for each metric
+    best_sharpe = print_best_parameters(results, "Sharpe Ratio", "sharpe_ratio")
+    best_return = print_best_parameters(results, "Annual Return", "annual_return")
+    best_drawdown = print_best_parameters(results, "Minimum Drawdown", "max_drawdown", is_min=True)
+    best_calmar = print_best_parameters(results, "Calmar Ratio", "calmar_ratio")
     
     # Create final strategy with best parameters (keeping the original best by Sharpe ratio)
     final_strategy = RSIStrategy(
@@ -226,16 +213,9 @@ def main():
         overbought=int(best_sharpe['overbought']), # type: ignore
         oversold=int(best_sharpe['oversold']) # type: ignore
     )
-
     
-    # Save results to CSV
-    results_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))), 'backtest', 'results')
-    os.makedirs(results_dir, exist_ok=True)
-    results_file = os.path.join(results_dir, 'rsi_parameter_optimization_results.csv')
-    results.to_csv(results_file, index=False)
-    print(f"\nDetailed results saved to '{results_file}'")
-    
-    # Plot results
+    # Save results and plot
+    results_dir = save_results(results)
     plot_results(results)
     print(f"Plot saved as '{os.path.join(results_dir, 'rsi_parameter_optimization.png')}'")
 
