@@ -1,223 +1,117 @@
-"""
-RSI Strategy Optimization Script
-Performs grid search to find optimal RSI parameters.
-"""
-
 import os
 import pandas as pd
 import numpy as np
 import yaml
 import matplotlib.pyplot as plt
+from ..base_optimize import BaseOptimizer
 from src.strategies.rsi.rsi_strategy import RSIStrategy
 
-def load_config():
-    """Load configuration from settings.yaml"""
-    config_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))), 'config', 'settings.yaml')
-    with open(config_path, 'r') as file:
-        return yaml.safe_load(file)
-
-def optimize_parameters(df, windows, overbought_levels, oversold_levels):
-    results = []
+class RsiOptimizer(BaseOptimizer):
+    def __init__(self):
+        super().__init__(RSIStrategy)
     
-    for window in windows:
-        # Create strategy instance with current window size
-        strategy = RSIStrategy(window=window)
+    def optimize_parameters(self, df, param_grid):
+        results = []
         
-        # Calculate indicators once for this window size
-        df_test = df.copy()
-        df_test = strategy.calculate_indicators(df_test)
+        for window in param_grid['windows']:
+            # Create strategy instance with current window size
+            strategy = RSIStrategy(window=window)
+            
+            # Calculate indicators once for this window size
+            df_test = df.copy()
+            df_test = strategy.calculate_indicators(df_test)
+            
+            for overbought, oversold in zip(param_grid['overbought_levels'], param_grid['oversold_levels']):
+                    # Generate signals with current thresholds
+                    df_signals = strategy.generate_signals(df_test, overbought=overbought, oversold=oversold) # type: ignore
+                    
+                    # Calculate performance metrics
+                    metrics = strategy.calculate_performance_metrics(df_signals)# type: ignore
+                    
+                    # Store results
+                    results.append({
+                        'window': window, 
+                        'overbought': overbought,
+                        'oversold': oversold,
+                        'sharpe_ratio': metrics['sharpe_ratio'],
+                        'annual_return': metrics['annual_return'],
+                        'max_drawdown': metrics['max_drawdown'],
+                        'calmar_ratio': metrics['calmar_ratio']
+                    })
+            
+        return pd.DataFrame(results)
+
+    def setup_parameters(self):
+        """Define the parameter ranges to test."""
+        windows = np.arange(10, 100, 10)
+        overbought_levels = np.arange(10, 100, 5)  # 60, 65, ..., 90
+        oversold_levels = 100 - overbought_levels  # 40, 35, ..., 10
+
+        print(f"\nTesting {len(windows)} window sizes from {windows[0]} to {windows[-1]}")
+        print(f"Testing {len(overbought_levels)} overbought/oversold pairs:")
+        print(f"Total combinations to test: {len(windows) * len(overbought_levels)}")
+        return {'windows':windows, 'overbought_levels':overbought_levels, 'oversold_levels':oversold_levels}
+    
+    def plot_results(self, results, metric1='sharpe_ratio', metric2='annual_return'):
+        """
+        Plot optimization results as heatmaps for RSI strategy.
         
-        for overbought, oversold in zip(overbought_levels, oversold_levels):
-                # Generate signals with current thresholds
-                df_signals = strategy.generate_signals(df_test, overbought=overbought, oversold=oversold) # type: ignore
-                
-                # Calculate performance metrics
-                metrics = strategy.calculate_performance_metrics(df_signals)# type: ignore
-                
-                # Store results
-                results.append({
-                    'window': window, 
-                    'overbought': overbought,
-                    'oversold': oversold,
-                    'sharpe_ratio': metrics['sharpe_ratio'],
-                    'annual_return': metrics['annual_return'],
-                    'max_drawdown': metrics['max_drawdown'],
-                    'calmar_ratio': metrics['calmar_ratio']
-                })
+        Args:
+            results (pd.DataFrame): Optimization results
+            metric1 (str): First metric to plot
+            metric2 (str): Second metric to plot
+        """
+        fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(15, 16))
         
-    return pd.DataFrame(results)
-
-def plot_results(results):
-    """Plot optimization results"""
-    # Create a figure with subplots for different metrics
-    fig, axes = plt.subplots(2, 2, figsize=(20, 16))
-    fig.suptitle('RSI Strategy Parameter Optimization Results', fontsize=16)
-    
-    # Plot Sharpe Ratio heatmap
-    pivot_sharpe = results.pivot_table(
-        index='window', 
-        columns='overbought', 
-        values='sharpe_ratio',
-        aggfunc='mean'
-    )
-    im1 = axes[0,0].imshow(pivot_sharpe, cmap='viridis', aspect='auto')
-    axes[0,0].set_xlabel('Overbought Level')
-    axes[0,0].set_ylabel('Window Size')
-    axes[0,0].set_title('Sharpe Ratio Heatmap')
-    plt.colorbar(im1, ax=axes[0,0], label='Sharpe Ratio')
-    
-    # Add text annotations for Sharpe ratio values
-    for i in range(len(pivot_sharpe.index)):
-        for j in range(len(pivot_sharpe.columns)):
-            value = pivot_sharpe.iloc[i, j]
-            if not np.isnan(value):  # Only add text if value is not NaN
-                text = axes[0,0].text(j, i, f'{value:.2f}',
-                                    ha='center', va='center',
-                                    color='white' if value < pivot_sharpe.mean().mean() else 'black')
-    
-    # Plot Annual Return heatmap
-    pivot_return = results.pivot_table(
-        index='window', 
-        columns='overbought', 
-        values='annual_return',
-        aggfunc='mean'
-    )
-    im2 = axes[0,1].imshow(pivot_return, cmap='viridis', aspect='auto')
-    axes[0,1].set_xlabel('Overbought Level')
-    axes[0,1].set_ylabel('Window Size')
-    axes[0,1].set_title('Annual Return Heatmap')
-    plt.colorbar(im2, ax=axes[0,1], label='Annual Return')
-    
-    # Plot Max Drawdown heatmap with red colormap
-    pivot_dd = results.pivot_table(
-        index='window', 
-        columns='overbought', 
-        values='max_drawdown',
-        aggfunc='mean'
-    )
-    # Use a red colormap for drawdown (darker red = worse drawdown)
-    im3 = axes[1,0].imshow(pivot_dd, cmap='Reds_r', aspect='auto')
-    axes[1,0].set_xlabel('Overbought Level')
-    axes[1,0].set_ylabel('Window Size')
-    axes[1,0].set_title('Max Drawdown Heatmap (Lower is Better)')
-    plt.colorbar(im3, ax=axes[1,0], label='Max Drawdown')
-    
-    # Plot Calmar Ratio heatmap
-    pivot_calmar = results.pivot_table(
-        index='window', 
-        columns='overbought', 
-        values='calmar_ratio',
-        aggfunc='mean'
-    )
-    im4 = axes[1,1].imshow(pivot_calmar, cmap='viridis', aspect='auto')
-    axes[1,1].set_xlabel('Overbought Level')
-    axes[1,1].set_ylabel('Window Size')
-    axes[1,1].set_title('Calmar Ratio Heatmap')
-    plt.colorbar(im4, ax=axes[1,1], label='Calmar Ratio')
-    
-    # Add text annotations for Calmar Ratio values
-    for i in range(len(pivot_calmar.index)):
-        for j in range(len(pivot_calmar.columns)):
-            value = pivot_calmar.iloc[i, j]
-            if not np.isnan(value):  # Only add text if value is not NaN
-                text = axes[1,1].text(j, i, f'{value:.2f}',
-                                    ha='center', va='center',
-                                    color='white' if value < pivot_calmar.mean().mean() else 'black')
-    
-    # Set y-axis ticks to show actual window sizes
-    for ax in axes.flat:
-        ax.set_yticks(range(len(pivot_sharpe.index)))
-        ax.set_yticklabels(pivot_sharpe.index)
-        plt.setp(ax.get_xticklabels(), rotation=45, ha='right')
-    
-    plt.tight_layout()
-    
-    # Save plot in the results directory
-    results_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))), 'backtest', 'results')
-    os.makedirs(results_dir, exist_ok=True)
-    plot_path = os.path.join(results_dir, 'rsi_parameter_optimization.png')
-    plt.savefig(plot_path, dpi=300, bbox_inches='tight')
-    plt.close()
-
-def load_data():
-    """Load and prepare price data for optimization."""
-    data_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))), 'data', 'BTC_HOURLY.csv')
-    df = pd.read_csv(data_path)
-    df = df.rename(columns={
-        'Date': 'datetime',
-        'Close': 'close'
-    })
-    return df
-
-def setup_parameters():
-    """Define the parameter ranges to test."""
-    windows = np.arange(10, 100, 10)
-    overbought_levels = np.arange(10, 100, 5)  # 60, 65, ..., 90
-    oversold_levels = 100 - overbought_levels  # 40, 35, ..., 10
-
-    print(f"\nTesting {len(windows)} window sizes from {windows[0]} to {windows[-1]}")
-    print(f"Testing {len(overbought_levels)} overbought/oversold pairs:")
-    print(f"Total combinations to test: {len(windows) * len(overbought_levels)}")
-    return windows, overbought_levels, oversold_levels
-
-def print_best_parameters(results, metric_name, metric_key, is_min=False):
-    """Print the best parameters for a given metric."""
-    if is_min:
-        best_params = results.loc[results[metric_key].idxmin()]
-    else:
-        best_params = results.loc[results[metric_key].idxmax()]
-    
-    print(f"\nBest Parameters by {metric_name}:")
-    print(f"Window Size: {best_params['window']}")
-    print(f"Overbought Level: {best_params['overbought']}")
-    print(f"Oversold Level: {best_params['oversold']}")
-    print(f"Sharpe Ratio: {best_params['sharpe_ratio']:.2f}")
-    print(f"Annual Return: {best_params['annual_return']:.2f}")
-    print(f"Max Drawdown: {best_params['max_drawdown']:.2f}")
-    print(f"Calmar Ratio: {best_params['calmar_ratio']:.2f}")
-    
-    return best_params
-
-def save_results(results):
-    """Save optimization results to CSV file."""
-    results_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))), 'backtest', 'results')
-    os.makedirs(results_dir, exist_ok=True)
-    results_file = os.path.join(results_dir, 'rsi_parameter_optimization_results.csv')
-    results.to_csv(results_file, index=False)
-    print(f"\nDetailed results saved to '{results_file}'")
-    return results_dir
+        # Plot first metric heatmap
+        pivot1 = results.pivot(index='window', columns='overbought', values=metric1)
+        im1 = ax1.imshow(pivot1, cmap='viridis', aspect='auto')
+        ax1.set_xlabel('Overbought Level')
+        ax1.set_ylabel('Window Size')
+        ax1.set_title(f'{metric1.replace("_", " ").title()} Heatmap')
+        plt.colorbar(im1, ax=ax1, label=metric1.replace("_", " ").title())
+        
+        # Add text annotations
+        for i in range(len(pivot1.index)):
+            for j in range(len(pivot1.columns)):
+                value = pivot1.iloc[i, j]
+                if not np.isnan(value):
+                    text = ax1.text(j, i, f'{value:.2f}',
+                                  ha='center', va='center',
+                                  color='white' if value < pivot1.mean().mean() else 'black')
+        
+        # Plot second metric heatmap
+        pivot2 = results.pivot(index='window', columns='overbought', values=metric2)
+        im2 = ax2.imshow(pivot2, cmap='viridis', aspect='auto')
+        ax2.set_xlabel('Overbought Level')
+        ax2.set_ylabel('Window Size')
+        ax2.set_title(f'{metric2.replace("_", " ").title()} Heatmap')
+        plt.colorbar(im2, ax=ax2, label=metric2.replace("_", " ").title())
+        
+        # Set y-axis ticks
+        ax1.set_yticks(range(len(pivot1.index)))
+        ax1.set_yticklabels(pivot1.index)
+        ax2.set_yticks(range(len(pivot2.index)))
+        ax2.set_yticklabels(pivot2.index)
+        
+        # Rotate x-axis labels
+        plt.setp(ax1.get_xticklabels(), rotation=45, ha='right')
+        plt.setp(ax2.get_xticklabels(), rotation=45, ha='right')
+        
+        plt.tight_layout()
+        
+        # Save plot
+        results_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))), 'backtest', 'results')
+        os.makedirs(results_dir, exist_ok=True)
+        plot_path = os.path.join(results_dir, f'{self.strategy_class.__name__.lower()}_parameter_optimization.png')
+        plt.savefig(plot_path, dpi=300, bbox_inches='tight')
+        plt.close()
 
 def main():
-    # Load data
-    df = load_data()
-    
-    # Get parameter ranges
-    windows, overbought_levels, oversold_levels = setup_parameters()
-    
-    # Run optimization
-    results = optimize_parameters(df, windows, overbought_levels, oversold_levels)
-    
-    # Print results
-    print("\nOptimization Results:")
-    print("-------------------")
-    
-    # Print best parameters for each metric
-    best_sharpe = print_best_parameters(results, "Sharpe Ratio", "sharpe_ratio")
-    best_return = print_best_parameters(results, "Annual Return", "annual_return")
-    best_drawdown = print_best_parameters(results, "Minimum Drawdown", "max_drawdown", is_min=True)
-    best_calmar = print_best_parameters(results, "Calmar Ratio", "calmar_ratio")
-    
-    # Create final strategy with best parameters (keeping the original best by Sharpe ratio)
-    final_strategy = RSIStrategy(
-        window=int(best_sharpe['window']), # type: ignore
-        overbought=int(best_sharpe['overbought']), # type: ignore
-        oversold=int(best_sharpe['oversold']) # type: ignore
-    )
-    
-    # Save results and plot
-    results_dir = save_results(results)
-    plot_results(results)
-    print(f"Plot saved as '{os.path.join(results_dir, 'rsi_parameter_optimization.png')}'")
+    data_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))), 'data', 'BTC_HOURLY.csv')
+    optimizer = RsiOptimizer()
+    optimizer.main(data_path)
+
 
 if __name__ == "__main__":
     main() 

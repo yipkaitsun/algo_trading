@@ -11,8 +11,8 @@ strategies:
   # Z-Score Strategy Parameters
   zscore:
     # Core Parameters
-    window: 30
-    threshold: 2.5
+    window: 50
+    threshold: 2.0
     position_size: 0.1
     
     # Signal Generation
@@ -32,9 +32,9 @@ strategies:
   # RSI Strategy Parameters
   rsi:
     # Core Parameters
-    window: 14
-    overbought: 70
-    oversold: 30
+    window: 30
+    overbought: 20
+    oversold: 80
     position_size: 0.1
     
     # Risk Management

@@ -45,7 +45,6 @@ class ZScoreStrategy(BaseStrategy):
         df['z'] = (df['close'] - df['ma']) / df['sd']
      
         # Calculate price change
-        df['chg'] = df['close'].pct_change()
         
         return df
     

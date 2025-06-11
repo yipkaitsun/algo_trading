@@ -12,6 +12,7 @@ class PerformanceMetrics:
         df = data.copy()
         
         # Calculate PnL
+        df['chg'] = df['close'].pct_change()
         df['pos_t-1'] = df['signal'].shift(1)
         df['pnl'] = df['pos_t-1'] * df['chg']
         
@@ -47,28 +48,8 @@ class PerformanceMetrics:
             'win_rate': win_rate,
             'profit_factor': profit_factor
         }
+
+   
     
-    @staticmethod
-    def calculate_rolling_metrics(data: pd.DataFrame, window: int = 252) -> pd.DataFrame:
-        """
-        Calculate rolling performance metrics.
-        
-        Args:
-            data (pd.DataFrame): DataFrame containing at least 'signal' and 'chg' columns
-            window (int): Rolling window size in days (default: 252 trading days)
-        
-        Returns:
-            pd.DataFrame: DataFrame containing rolling metrics
-        """
-        df = data.copy()
-        
-        # Calculate PnL
-        df['pos_t-1'] = df['signal'].shift(1)
-        df['pnl'] = df['pos_t-1'] * df['chg']
-        
-        # Calculate rolling metrics
-        df['rolling_sharpe'] = df['pnl'].rolling(window).mean() / df['pnl'].rolling(window).std() * np.sqrt(365)
-        df['rolling_return'] = df['pnl'].rolling(window).mean() * 365
-        df['rolling_vol'] = df['pnl'].rolling(window).std() * np.sqrt(365)
-        
-        return df[['rolling_sharpe', 'rolling_return', 'rolling_vol']] 
+
+    
