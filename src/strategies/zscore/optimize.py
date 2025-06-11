@@ -62,9 +62,14 @@ def plot_results(results):
     ax1.set_title('Sharpe Ratio Heatmap')
     plt.colorbar(im1, ax=ax1, label='Sharpe Ratio')
     
-    # Set y-axis ticks to show actual window sizes
-    ax1.set_yticks(range(len(pivot_sharpe.index)))
-    ax1.set_yticklabels(pivot_sharpe.index)
+    # Add text annotations for Sharpe ratio values
+    for i in range(len(pivot_sharpe.index)):
+        for j in range(len(pivot_sharpe.columns)):
+            value = pivot_sharpe.iloc[i, j]
+            if not np.isnan(value):  # Only add text if value is not NaN
+                text = ax1.text(j, i, f'{value:.2f}',
+                              ha='center', va='center',
+                              color='white' if value < pivot_sharpe.mean().mean() else 'black')
     
     # Plot Annual Return heatmap
     pivot_return = results.pivot(index='window', columns='threshold', values='annual_return')
@@ -75,6 +80,8 @@ def plot_results(results):
     plt.colorbar(im2, ax=ax2, label='Annual Return')
     
     # Set y-axis ticks to show actual window sizes
+    ax1.set_yticks(range(len(pivot_sharpe.index)))
+    ax1.set_yticklabels(pivot_sharpe.index)
     ax2.set_yticks(range(len(pivot_return.index)))
     ax2.set_yticklabels(pivot_return.index)
     
@@ -87,7 +94,7 @@ def plot_results(results):
     # Save plot in the results directory
     results_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))), 'backtest', 'results')
     os.makedirs(results_dir, exist_ok=True)
-    plot_path = os.path.join(results_dir, 'parameter_optimization.png')
+    plot_path = os.path.join(results_dir, 'zscore_parameter_optimization.png')
     plt.savefig(plot_path, dpi=300, bbox_inches='tight')
     plt.close()
 
@@ -101,7 +108,7 @@ def main():
     })
     
     # Define parameters to test
-    windows = np.arange(10, 100, 10) 
+    windows = np.arange(10, 100, 10)  # Test different window sizes
     thresholds = np.arange(0, 2.5, 0.25) 
     
     print(f"\nTesting {len(windows)} window sizes from {windows[0]} to {windows[-1]}")
@@ -111,35 +118,60 @@ def main():
     # Run optimization
     results = optimize_threshold(df, windows, thresholds)
     
-    # Find best combination based on Sharpe ratio
-    best_params = results.loc[results['sharpe_ratio'].idxmax()]
-    
     # Print results
     print("\nOptimization Results:")
     print("-------------------")
-    print(f"Best Window Size: {best_params['window']}")
-    print(f"Best Threshold: {best_params['threshold']:.2f}")
-    print(f"Best Sharpe Ratio: {best_params['sharpe_ratio']:.2f}")
-    print(f"Annual Return: {best_params['annual_return']:.2f}")
-    print(f"Max Drawdown: {best_params['max_drawdown']:.2f}")
-    print(f"Calmar Ratio: {best_params['calmar_ratio']:.2f}")
     
-    # Create final strategy with best parameters
-    final_strategy = ZScoreStrategy(window=int(best_params['window']))
-    print("\nFinal strategy created with optimized parameters:")
-    print(f"window={final_strategy.window}")
-    print(f"threshold={best_params['threshold']:.2f} (to be passed to generate_signals)")
+    # Best parameters based on Sharpe Ratio
+    best_sharpe = results.loc[results['sharpe_ratio'].idxmax()]
+    print("\nBest Parameters by Sharpe Ratio:")
+    print(f"Window Size: {best_sharpe['window']}")
+    print(f"Threshold: {best_sharpe['threshold']:.2f}")
+    print(f"Sharpe Ratio: {best_sharpe['sharpe_ratio']:.2f}")
+    print(f"Annual Return: {best_sharpe['annual_return']:.2f}")
+    print(f"Max Drawdown: {best_sharpe['max_drawdown']:.2f}")
+    print(f"Calmar Ratio: {best_sharpe['calmar_ratio']:.2f}")
+    
+    # Best parameters based on Annual Return
+    best_return = results.loc[results['annual_return'].idxmax()]
+    print("\nBest Parameters by Annual Return:")
+    print(f"Window Size: {best_return['window']}")
+    print(f"Threshold: {best_return['threshold']:.2f}")
+    print(f"Sharpe Ratio: {best_return['sharpe_ratio']:.2f}")
+    print(f"Annual Return: {best_return['annual_return']:.2f}")
+    print(f"Max Drawdown: {best_return['max_drawdown']:.2f}")
+    print(f"Calmar Ratio: {best_return['calmar_ratio']:.2f}")
+    
+    # Best parameters based on Max Drawdown (minimum drawdown)
+    best_drawdown = results.loc[results['max_drawdown'].idxmin()]
+    print("\nBest Parameters by Minimum Drawdown:")
+    print(f"Window Size: {best_drawdown['window']}")
+    print(f"Threshold: {best_drawdown['threshold']:.2f}")
+    print(f"Sharpe Ratio: {best_drawdown['sharpe_ratio']:.2f}")
+    print(f"Annual Return: {best_drawdown['annual_return']:.2f}")
+    print(f"Max Drawdown: {best_drawdown['max_drawdown']:.2f}")
+    print(f"Calmar Ratio: {best_drawdown['calmar_ratio']:.2f}")
+    
+    # Best parameters based on Calmar Ratio
+    best_calmar = results.loc[results['calmar_ratio'].idxmax()]
+    print("\nBest Parameters by Calmar Ratio:")
+    print(f"Window Size: {best_calmar['window']}")
+    print(f"Threshold: {best_calmar['threshold']:.2f}")
+    print(f"Sharpe Ratio: {best_calmar['sharpe_ratio']:.2f}")
+    print(f"Annual Return: {best_calmar['annual_return']:.2f}")
+    print(f"Max Drawdown: {best_calmar['max_drawdown']:.2f}")
+    print(f"Calmar Ratio: {best_calmar['calmar_ratio']:.2f}")
     
     # Save results to CSV
     results_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))), 'backtest', 'results')
     os.makedirs(results_dir, exist_ok=True)
-    results_file = os.path.join(results_dir, 'parameter_optimization_results.csv')
+    results_file = os.path.join(results_dir, 'zscore_parameter_optimization_results.csv')
     results.to_csv(results_file, index=False)
     print(f"\nDetailed results saved to '{results_file}'")
     
     # Plot results
     plot_results(results)
-    print(f"Plot saved as '{os.path.join(results_dir, 'parameter_optimization.png')}'")
+    print(f"Plot saved as '{os.path.join(results_dir, 'zscore_parameter_optimization.png')}'")
 
 if __name__ == "__main__":
     main() 

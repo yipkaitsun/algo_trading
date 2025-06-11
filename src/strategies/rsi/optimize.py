@@ -78,6 +78,15 @@ def plot_results(results):
     axes[0,0].set_title('Sharpe Ratio Heatmap')
     plt.colorbar(im1, ax=axes[0,0], label='Sharpe Ratio')
     
+    # Add text annotations for Sharpe ratio values
+    for i in range(len(pivot_sharpe.index)):
+        for j in range(len(pivot_sharpe.columns)):
+            value = pivot_sharpe.iloc[i, j]
+            if not np.isnan(value):  # Only add text if value is not NaN
+                text = axes[0,0].text(j, i, f'{value:.2f}',
+                                    ha='center', va='center',
+                                    color='white' if value < pivot_sharpe.mean().mean() else 'black')
+    
     # Plot Annual Return heatmap
     pivot_return = results.pivot_table(
         index='window', 
@@ -91,17 +100,18 @@ def plot_results(results):
     axes[0,1].set_title('Annual Return Heatmap')
     plt.colorbar(im2, ax=axes[0,1], label='Annual Return')
     
-    # Plot Max Drawdown heatmap
+    # Plot Max Drawdown heatmap with red colormap
     pivot_dd = results.pivot_table(
         index='window', 
         columns='overbought', 
         values='max_drawdown',
         aggfunc='mean'
     )
-    im3 = axes[1,0].imshow(pivot_dd, cmap='viridis', aspect='auto')
+    # Use a red colormap for drawdown (darker red = worse drawdown)
+    im3 = axes[1,0].imshow(pivot_dd, cmap='Reds_r', aspect='auto')
     axes[1,0].set_xlabel('Overbought Level')
     axes[1,0].set_ylabel('Window Size')
-    axes[1,0].set_title('Max Drawdown Heatmap')
+    axes[1,0].set_title('Max Drawdown Heatmap (Lower is Better)')
     plt.colorbar(im3, ax=axes[1,0], label='Max Drawdown')
     
     # Plot Calmar Ratio heatmap
@@ -116,6 +126,15 @@ def plot_results(results):
     axes[1,1].set_ylabel('Window Size')
     axes[1,1].set_title('Calmar Ratio Heatmap')
     plt.colorbar(im4, ax=axes[1,1], label='Calmar Ratio')
+    
+    # Add text annotations for Calmar Ratio values
+    for i in range(len(pivot_calmar.index)):
+        for j in range(len(pivot_calmar.columns)):
+            value = pivot_calmar.iloc[i, j]
+            if not np.isnan(value):  # Only add text if value is not NaN
+                text = axes[1,1].text(j, i, f'{value:.2f}',
+                                    ha='center', va='center',
+                                    color='white' if value < pivot_calmar.mean().mean() else 'black')
     
     # Set y-axis ticks to show actual window sizes
     for ax in axes.flat:
@@ -142,7 +161,7 @@ def main():
     })
     
     # Define parameters to test
-    windows = np.arange(1, 50, 1)  # Test window sizes from 5 to 30
+    windows = np.arange(10, 100, 10) 
     overbought_levels = np.arange(10, 100, 5)  # 60, 65, ..., 90
     oversold_levels = 100 - overbought_levels  # 40, 35, ..., 10
     
@@ -153,30 +172,61 @@ def main():
     # Run optimization
     results = optimize_parameters(df, windows, overbought_levels, oversold_levels)
     
-    # Find best combination based on Sharpe ratio
-    best_params = results.loc[results['sharpe_ratio'].idxmax()]
-    
     # Print results
     print("\nOptimization Results:")
     print("-------------------")
-    print(f"Best Window Size: {best_params['window']}")
-    print(f"Best Overbought Level: {best_params['overbought']}")
-    print(f"Best Oversold Level: {best_params['oversold']}")
-    print(f"Best Sharpe Ratio: {best_params['sharpe_ratio']:.2f}")
-    print(f"Annual Return: {best_params['annual_return']:.2f}")
-    print(f"Max Drawdown: {best_params['max_drawdown']:.2f}")
-    print(f"Calmar Ratio: {best_params['calmar_ratio']:.2f}")
     
-    # Create final strategy with best parameters
+    # Best parameters based on Sharpe Ratio
+    best_sharpe = results.loc[results['sharpe_ratio'].idxmax()]
+    print("\nBest Parameters by Sharpe Ratio:")
+    print(f"Window Size: {best_sharpe['window']}")
+    print(f"Overbought Level: {best_sharpe['overbought']}")
+    print(f"Oversold Level: {best_sharpe['oversold']}")
+    print(f"Sharpe Ratio: {best_sharpe['sharpe_ratio']:.2f}")
+    print(f"Annual Return: {best_sharpe['annual_return']:.2f}")
+    print(f"Max Drawdown: {best_sharpe['max_drawdown']:.2f}")
+    print(f"Calmar Ratio: {best_sharpe['calmar_ratio']:.2f}")
+    
+    # Best parameters based on Annual Return
+    best_return = results.loc[results['annual_return'].idxmax()]
+    print("\nBest Parameters by Annual Return:")
+    print(f"Window Size: {best_return['window']}")
+    print(f"Overbought Level: {best_return['overbought']}")
+    print(f"Oversold Level: {best_return['oversold']}")
+    print(f"Sharpe Ratio: {best_return['sharpe_ratio']:.2f}")
+    print(f"Annual Return: {best_return['annual_return']:.2f}")
+    print(f"Max Drawdown: {best_return['max_drawdown']:.2f}")
+    print(f"Calmar Ratio: {best_return['calmar_ratio']:.2f}")
+    
+    # Best parameters based on Max Drawdown (minimum drawdown)
+    best_drawdown = results.loc[results['max_drawdown'].idxmin()]
+    print("\nBest Parameters by Minimum Drawdown:")
+    print(f"Window Size: {best_drawdown['window']}")
+    print(f"Overbought Level: {best_drawdown['overbought']}")
+    print(f"Oversold Level: {best_drawdown['oversold']}")
+    print(f"Sharpe Ratio: {best_drawdown['sharpe_ratio']:.2f}")
+    print(f"Annual Return: {best_drawdown['annual_return']:.2f}")
+    print(f"Max Drawdown: {best_drawdown['max_drawdown']:.2f}")
+    print(f"Calmar Ratio: {best_drawdown['calmar_ratio']:.2f}")
+    
+    # Best parameters based on Calmar Ratio
+    best_calmar = results.loc[results['calmar_ratio'].idxmax()]
+    print("\nBest Parameters by Calmar Ratio:")
+    print(f"Window Size: {best_calmar['window']}")
+    print(f"Overbought Level: {best_calmar['overbought']}")
+    print(f"Oversold Level: {best_calmar['oversold']}")
+    print(f"Sharpe Ratio: {best_calmar['sharpe_ratio']:.2f}")
+    print(f"Annual Return: {best_calmar['annual_return']:.2f}")
+    print(f"Max Drawdown: {best_calmar['max_drawdown']:.2f}")
+    print(f"Calmar Ratio: {best_calmar['calmar_ratio']:.2f}")
+    
+    # Create final strategy with best parameters (keeping the original best by Sharpe ratio)
     final_strategy = RSIStrategy(
-        window=int(best_params['window']), # type: ignore
-        overbought=int(best_params['overbought']), # type: ignore
-        oversold=int(best_params['oversold']) # type: ignore
+        window=int(best_sharpe['window']), # type: ignore
+        overbought=int(best_sharpe['overbought']), # type: ignore
+        oversold=int(best_sharpe['oversold']) # type: ignore
     )
-    print("\nFinal strategy created with optimized parameters:")
-    print(f"window={final_strategy.window}")
-    print(f"overbought={final_strategy.overbought}")
-    print(f"oversold={final_strategy.oversold}")
+
     
     # Save results to CSV
     results_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))), 'backtest', 'results')
