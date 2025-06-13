@@ -2,19 +2,23 @@
 Z-Score based trading strategy implementation.
 """
 
+from turtle import position
 import pandas as pd
 import numpy as np
 from typing import Dict, Optional
 import logging
 from ..base_strategy import BaseStrategy
+from typing import Dict, Any, Optional
 
 logger = logging.getLogger(__name__)
 
 class ZscoreStrategy(BaseStrategy):
-    def __init__(self, window, threshold, position_size):
+    def __init__(self, window, threshold,initial_capital ,config: Dict[str, Any]):
         self.window = window
         self.threshold = threshold
-        self.position_size = position_size
+        self.positions = config['position_size']
+        self.current_capital = initial_capital  * self.positions
+
         
     def validate_data(self, data: pd.DataFrame) -> bool:
         required_columns = ['close']
@@ -41,9 +45,4 @@ class ZscoreStrategy(BaseStrategy):
         if threshold is None:
             threshold = self.threshold
         data['signal'] = np.where(data['z'] > threshold, 1, 0)
-
         return data
-    
-    def calculate_position_size(self, signal: int, price: float) -> float:
-        return self.position_size * (self.current_capital / price)
-    

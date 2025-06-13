@@ -1,11 +1,10 @@
 import os
 import pandas as pd
 import numpy as np
-import yaml
 import matplotlib.pyplot as plt
+
 from ..base_optimize import BaseOptimizer
 from .zscore_strategy import ZscoreStrategy
-
 
 class ZScoreOptimizer(BaseOptimizer):
     def __init__(self):
@@ -13,38 +12,34 @@ class ZScoreOptimizer(BaseOptimizer):
     
     def optimize_parameters(self, df, param_grid):
         results = []
-        
+        config = self.load_config()
+        strategy_config = config['strategies']['zscore']
         for window in param_grid['windows']:
             for threshold in param_grid['thresholds']:
-                strategy = ZscoreStrategy(window=window, threshold=threshold, position_size=0.1)
-
+                strategy = ZscoreStrategy(
+                    window=window,
+                    threshold=threshold,
+                    config=strategy_config,
+                    initial_capital=config['initial_capital']
+                )
                 df_test = df.copy()
-                df_test = strategy.calculate_indicators(df_test)
-                df_test = strategy.generate_signals(df_test, threshold=threshold)
-                
-                # Calculate performance metrics
-                metrics = strategy.calculate_performance_metrics(df_test)
+                metrics = strategy.run(df_test,False)
                 
                 results.append({
                     'window': window,
                     'threshold': threshold,
-                    'profit_factor': metrics['profit_factor'],
-                    'win_rate': metrics['win_rate'],
+                    'total_pl': metrics['total_pl'],
+                    'cumulative_return': metrics['cumulative_return'],
                     'sharpe_ratio': metrics['sharpe_ratio'],
-                    'annual_return': metrics['annual_return'],
+                    'sortino_ratio': metrics['sortino_ratio'],
                     'max_drawdown': metrics['max_drawdown'],
-                    'calmar_ratio': metrics['calmar_ratio']
+                    'trades': metrics['trades'],
+                    'equity_curve': metrics['equity_curve']
                 })
         
         return pd.DataFrame(results)
 
     def setup_parameters(self):
-        """
-        Setup the parameter grid for ZScore optimization.
-        
-        Returns:
-            dict: Dictionary of parameter names and their values to test
-        """
         windows = np.arange(10, 100, 10)  # Test different window sizes
         thresholds = np.arange(0, 2.5, 0.25)
         
@@ -54,21 +49,13 @@ class ZScoreOptimizer(BaseOptimizer):
         
         return {'windows': windows, 'thresholds': thresholds}
 
-    def plot_results(self, results, metric1='sharpe_ratio', metric2='annual_return'):
-        """
-        Plot optimization results as heatmaps.
-        
-        Args:
-            results (pd.DataFrame): Optimization results
-            metric1 (str): First metric to plot
-            metric2 (str): Second metric to plot
-        """
+    def plot_results(self, results, metric1='sharpe_ratio', metric2='total_pl'):
         fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(15, 16))
         
         # Plot first metric heatmap
         pivot1 = results.pivot(index='window', columns='threshold', values=metric1)
         im1 = ax1.imshow(pivot1, cmap='viridis', aspect='auto')
-        ax1.set_xlabel('Threshold')
+        ax1.set_xlabel('Zscore Threshold')
         ax1.set_ylabel('Window Size')
         ax1.set_title(f'{metric1.replace("_", " ").title()} Heatmap')
         plt.colorbar(im1, ax=ax1, label=metric1.replace("_", " ").title())
@@ -85,7 +72,7 @@ class ZScoreOptimizer(BaseOptimizer):
         # Plot second metric heatmap
         pivot2 = results.pivot(index='window', columns='threshold', values=metric2)
         im2 = ax2.imshow(pivot2, cmap='viridis', aspect='auto')
-        ax2.set_xlabel('Threshold')
+        ax2.set_xlabel('Zscore Threshold')
         ax2.set_ylabel('Window Size')
         ax2.set_title(f'{metric2.replace("_", " ").title()} Heatmap')
         plt.colorbar(im2, ax=ax2, label=metric2.replace("_", " ").title())

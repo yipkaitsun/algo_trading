@@ -1,11 +1,6 @@
 import os
 import sys
-import pandas as pd
-import numpy as np
-import yaml
 import logging
-from pathlib import Path
-from typing import Dict, Any
 
 # Add the src directory to the Python path when running directly
 if __name__ == "__main__":
@@ -28,19 +23,15 @@ class ZScoreBacktest(BaseBacktest):
     def __init__(self):
         super().__init__(strategy_name='zscore')
     
-    def load_config(self) -> Dict[str, Any]:
-        """Load configuration from settings.yaml"""
-        config_path = self._get_project_root() / 'config' / 'settings.yaml'
-        with open(config_path, 'r') as file:
-            return yaml.safe_load(file)['strategies']['zscore']
-    
     def initialize_strategy(self) -> None:
         """Initialize the ZScore strategy with configuration."""
-        strategy_config = self.load_config()
+        config = self.load_config()
+        strategy_config = config['strategies']['zscore']
         self.strategy = ZscoreStrategy(
             window=strategy_config['window'],
             threshold=strategy_config['threshold'],
-            position_size=strategy_config['position_size']
+            config=strategy_config,
+            initial_capital = config['initial_capital']
         )
     
 

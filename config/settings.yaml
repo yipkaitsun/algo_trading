@@ -1,5 +1,5 @@
 alpha_vantage_api_key: 12NGKM9P6N4YJ2Z5
-
+initial_capital: 10000
 # Trading System State Configuration
 system_state:
   mode: "live"  # Options: "live", "backtest", "paper"
@@ -11,8 +11,8 @@ system_state:
 strategies:
   # Z-Score Strategy Parameters
   zscore:
-    window: 50
-    threshold: 2.0
+    window: 90
+    threshold: 2.25
     position_size: 0.1
 
   # RSI Strategy Parameters

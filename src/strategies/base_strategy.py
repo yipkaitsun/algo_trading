@@ -1,13 +1,12 @@
 """
 Abstract base class for trading strategies.
 """
-
-from abc import ABC, abstractmethod
-from typing import Dict, Any, List, Optional
+import os
 import pandas as pd
-import numpy as np
+import yaml
+from abc import ABC, abstractmethod
+from typing import Dict, Any
 import logging
-from datetime import datetime
 from src.utils.performance_metrics import PerformanceMetrics
 
 logger = logging.getLogger(__name__)
@@ -20,17 +19,14 @@ class BaseStrategy(ABC):
     """
     
     def __init__(self, config: Dict[str, Any]):
-        """
-        Initialize the strategy with configuration parameters.
-        
-        Args:
-            config (Dict[str, Any]): Strategy configuration parameters
-        """
+     
         self.config = config
+
+        # Set initial capital (default to 100000 if not specified)
+        self.current_capital:Any
         
         # Get trading parameters
         trading_config = config.get('trading', {})
-        self.initial_capital = trading_config.get('initial_capital', 100000)
         self.commission = trading_config.get('commission', 0.001)
         self.slippage = trading_config.get('slippage', 0.0005)
         
@@ -39,11 +35,7 @@ class BaseStrategy(ABC):
         self.max_position_size = risk_config.get('max_position_size', 0.1)
         self.stop_loss = risk_config.get('stop_loss', 0.02)
         self.take_profit = risk_config.get('take_profit', 0.05)
-        
-        # Initialize tracking variables
-        self.positions = {}  # Current positions
-        self.trades = []     # Trade history
-        self.current_capital = self.initial_capital
+
     
     # ============= Abstract Methods (Must be implemented by child classes) =============
     
@@ -89,13 +81,13 @@ class BaseStrategy(ABC):
         """
         pass
 
-    def calculate_performance_metrics(self, data: pd.DataFrame) -> Dict[str, float]:
-        return PerformanceMetrics.calculate_metrics(data)
+    def calculate_performance_metrics(self, data: pd.DataFrame, initial_capital, savecsv) -> Dict[str, float]:
+        return PerformanceMetrics.calculate_trading_metrics(data, initial_capital,save_csv=savecsv)
     
 
     # ============= Concrete Methods (Implemented in base class) =============
     
-    def run(self, data: pd.DataFrame) -> Dict[str, Any]:
+    def run(self, data: pd.DataFrame, savecsv) -> Dict[str, Any]:
         """
         Run the trading strategy on the provided market data.
         
@@ -110,26 +102,17 @@ class BaseStrategy(ABC):
         if not self.validate_data(data):
             logger.error("Invalid data format")
             return self._get_empty_results()
-        
         try:
-            # Calculate indicators
             data_with_indicators = self.calculate_indicators(data)
             
             # Generate signals
+            
             data_with_signals = self.generate_signals(data_with_indicators)
             
             # Calculate performance metrics
-            metrics = self.calculate_performance_metrics(data_with_signals)
+            metrics = self.calculate_performance_metrics(data_with_signals, self.current_capital, savecsv=savecsv)
             
-            results = {
-                'data': data_with_signals,
-                'metrics': metrics
-            }
-            
-            logger.info("Strategy execution completed")
-            logger.info(f"Performance metrics: {metrics}")
-            
-            return results
+            return metrics
             
         except Exception as e:
             logger.error(f"Error during strategy execution: {str(e)}")
@@ -148,37 +131,6 @@ class BaseStrategy(ABC):
                 'profit_factor': 0.0
             }
         }
+
     
-    def _calculate_returns(self, data: pd.DataFrame) -> pd.Series:
-        """Calculate returns from price data."""
-        return data['close'].pct_change()
-    
-    def _calculate_cumulative_returns(self, returns: pd.Series) -> pd.Series:
-        """Calculate cumulative returns."""
-        return (1 + returns).cumprod()
-    
-    def _calculate_drawdown(self, cumulative_returns: pd.Series) -> pd.Series:
-        """Calculate drawdown series."""
-        rolling_max = cumulative_returns.expanding().max()
-        return cumulative_returns / rolling_max - 1
-    
-    def _calculate_max_drawdown(self, drawdown: pd.Series) -> float:
-        """Calculate maximum drawdown."""
-        return drawdown.min()
-    
-    def _calculate_sharpe_ratio(self, returns: pd.Series, risk_free_rate: float = 0.02) -> float:
-        """Calculate Sharpe ratio."""
-        excess_returns = returns - risk_free_rate/252
-        return np.sqrt(252) * excess_returns.mean() / excess_returns.std()
-    
-    def _calculate_win_rate(self, returns: pd.Series) -> float:
-        """Calculate win rate."""
-        winning_trades = len(returns[returns > 0])
-        total_trades = len(returns[returns != 0])
-        return winning_trades / total_trades if total_trades > 0 else 0.0
-    
-    def _calculate_profit_factor(self, returns: pd.Series) -> float:
-        """Calculate profit factor."""
-        positive_returns = returns[returns > 0].sum()
-        negative_returns = abs(returns[returns < 0].sum())
-        return positive_returns / negative_returns if negative_returns != 0 else float('inf') 
+   

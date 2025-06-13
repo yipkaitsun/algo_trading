@@ -1,13 +1,10 @@
 from abc import ABC, abstractmethod
 import pandas as pd
-import numpy as np
-from typing import Dict, Any
+from typing import  Any
 from pathlib import Path
 import logging
-from datetime import datetime
-import matplotlib.pyplot as plt
 from src.strategies.base_strategy import BaseStrategy
-from src.utils.utils import CalculationUtils
+import yaml
 
 logger = logging.getLogger(__name__)
 class BaseBacktest(ABC):
@@ -27,10 +24,11 @@ class BaseBacktest(ABC):
         """Get the results directory for this strategy."""
         return self._get_project_root() / 'backtest' / 'results' / self.strategy_name
     
-    @abstractmethod
-    def load_config(self) -> Dict[str, Any]:
-        """Load strategy configuration."""
-        pass
+    def load_config(self):
+        """Load configuration from settings.yaml"""
+        config_path = self._get_project_root() / 'config' / 'settings.yaml'
+        with open(config_path, 'r') as file:
+            return yaml.safe_load(file)
     
     @abstractmethod
     def initialize_strategy(self):
@@ -62,59 +60,19 @@ class BaseBacktest(ABC):
         
         logger.info(f"Successfully loaded {len(df)} rows of data")
         return df
-
     
-    def calculate_indicators(self, df: pd.DataFrame) -> pd.DataFrame:
-        return self.strategy.calculate_indicators(df)
-        
-    
-    def generate_signals(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Generate ZScore-specific signals."""
-        return self.strategy.generate_signals(df)
-    
-    def save_results(self, df: pd.DataFrame) -> str:
-        """Save results to CSV file."""
-        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-        output_file = self.results_dir / f'{self.strategy_name}_results_{timestamp}.csv'
-        
-        df.index.name = 'timestamp'
-        df.to_csv(output_file)
-        logger.info(f"Results saved to: {output_file}")
-        return str(output_file)
-    
-    def plot_cumulative_return(self, df: pd.DataFrame) -> None:
-        """Plot and save cumulative returns of the strategy."""
-        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-        plot_file = self.results_dir / f'cumulative_return_plot_{timestamp}.png'
-        
-        plt.figure(figsize=(12, 6))
-        plt.plot(df.index, df['cumulative_return'], label='Cumulative Return')
-        plt.title(f'{self.strategy_name} Strategy Cumulative Return')
-        plt.xlabel('Time')
-        plt.ylabel('Cumulative Return')
-        plt.legend()
-        plt.grid(True)
-        
-        plt.savefig(plot_file)
-        plt.close()
-        
-        logger.info(f"Plot saved to: {plot_file}")
-    
-    def save_performance_metrics(self, metrics: Dict[str, float], df: pd.DataFrame) -> None:
+    def save_performance_metrics(self, metrics: Any) -> None:
         """Print performance metrics to console."""
         print(f"\nBacktest Results for {self.strategy_name}:")
         print("-------------------")
-        print("\nPerformance Metrics:")
-        for metric, value in metrics.items():
-            if isinstance(value, float):
-                if 'ratio' in metric.lower():
-                    print(f"  {metric}: {value:.2f}")
-                else:
-                    print(f"  {metric}: {value:.2%}")
-            else:
-                print(f"  {metric}: {value}")
-        
-        logger.info("Performance metrics printed to console")
+        print("Performance Metrics:")
+        print(f"Total Profit/Loss: {metrics['total_pl']:.2f}")
+        print(f"Cumulative Return: {metrics['cumulative_return']:.4f}")
+        print(f"Sharpe Ratio: {metrics['sharpe_ratio']:.4f}" if metrics['sharpe_ratio'] else "Sharpe Ratio: N/A")
+        print(f"Sortino Ratio: {metrics['sortino_ratio']:.4f}" if metrics['sortino_ratio'] else "Sortino Ratio: N/A")
+        print(f"Maximum Drawdown: {metrics['max_drawdown']:.4f}")
+        print("Trades:", metrics['trades'])
+        print("Equity Curve:", metrics['equity_curve'])
     
     def log_strategy_parameters(self) -> None:
         """Log strategy parameters before saving metrics."""
@@ -126,26 +84,8 @@ class BaseBacktest(ABC):
 
     def run_backtest(self, symbol) -> None:
         """Run the backtest with common flow for all strategies."""
-        # Initialize strategy
         self.initialize_strategy()
-        
-        # Load and process data
         df = self.load_data(symbol)
-        
-        # Calculate indicators and generate signals
-        df = self.calculate_indicators(df)
-        df = self.generate_signals(df)
-        
-        # Calculate returns
-        # df = CalculationUtils.calculate_returns(df)
-        
-        # Save results and plot
-        # self.save_results(df)
-        # self.plot_cumulative_return(df)
-        
-        # Calculate and save performance metrics
-        metrics = self.strategy.calculate_performance_metrics(df)
-        
-        # Log strategy parameters and save metrics
+        metrics = self.strategy.run(df,True)
         self.log_strategy_parameters()
-        self.save_performance_metrics(metrics, df) 
+        self.save_performance_metrics(metrics) 

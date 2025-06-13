@@ -6,16 +6,17 @@ import pandas as pd
 from typing import Dict
 import logging
 from ..base_strategy import BaseStrategy
-from src.utils.performance_metrics import PerformanceMetrics
+from typing import Dict, Any, Optional
 
 logger = logging.getLogger(__name__)
 
 class RsiStrategy(BaseStrategy):
-    def __init__(self, window, overbought, oversold, position_size):
+    def __init__(self, window, overbought, oversold, initial_capital ,config: Dict[str, Any]):
         self.window = window
         self.overbought = overbought  # Default value
         self.oversold = oversold  # Default value
-        self.position_size = position_size
+        self.positions = config['position_size']
+        self.current_capital = initial_capital  * self.positions
         
     def validate_data(self, data: pd.DataFrame) -> bool:
         required_columns = ['close']
@@ -47,30 +48,14 @@ class RsiStrategy(BaseStrategy):
         
         return df
     
-    def generate_signals(self, data: pd.DataFrame, overbought: int = None, oversold: int = None) -> pd.DataFrame:
-        """
-        Generate trading signals based on RSI thresholds.
-        
-        Args:
-            data (pd.DataFrame): DataFrame with RSI values
-            overbought (int, optional): Overbought threshold. If None, uses instance default
-            oversold (int, optional): Oversold threshold. If None, uses instance default
-            
-        Returns:
-            pd.DataFrame: DataFrame with signals added
-        """
+    def generate_signals(self, data: pd.DataFrame, overbought: Optional[int] =None, oversold: Optional[int] =None) -> pd.DataFrame:
+
         df = data.copy()
         
-        # Use provided thresholds or fall back to instance defaults
         overbought = overbought if overbought is not None else self.overbought
         oversold = oversold if oversold is not None else self.oversold
         
-        # Generate signals based on RSI thresholds
-        # 1 for oversold (buy), -1 for overbought (sell), 0 for no action
         df['signal'] = 0
         df.loc[df['rsi'] > oversold, 'signal'] = 1
         
         return df
-    
-    def calculate_position_size(self, signal: int, price: float) -> float:
-        return self.position_size * (self.current_capital / price)

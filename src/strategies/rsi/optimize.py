@@ -1,7 +1,6 @@
 import os
 import pandas as pd
 import numpy as np
-import yaml
 import matplotlib.pyplot as plt
 from ..base_optimize import BaseOptimizer
 from .rsi_strategy import RsiStrategy
@@ -12,31 +11,35 @@ class RsiOptimizer(BaseOptimizer):
     
     def optimize_parameters(self, df, param_grid):
         results = []
-        
+        config = self.load_config()
+        strategy_config = config['strategies']['rsi']
         for window in param_grid['windows']:
             # Create strategy instance with current window size
             for overbought, oversold in zip(param_grid['overbought_levels'], param_grid['oversold_levels']):
                     
-                    strategy = RsiStrategy(window=window, overbought=overbought, oversold=oversold, position_size=0.1)
+                    strategy = RsiStrategy(
+                                            window=window, 
+                                            overbought=overbought,
+                                            oversold=oversold,  
+                                            config=strategy_config,
+                                            initial_capital=config['initial_capital'])
                     df_test = df.copy()
-                    df_test = strategy.calculate_indicators(df_test)
-                    # Generate signals with current thresholds
-                    df_signals = strategy.generate_signals(df_test, overbought=overbought, oversold=oversold) # type: ignore
-                    
-                    # Calculate performance metrics
-                    metrics = strategy.calculate_performance_metrics(df_signals)# type: ignore
-                    
-                    # Store results
+                    # Run the strategy
+                    metrics = strategy.run(df_test, False)
+                    # Store results 
+                       
                     results.append({
-                        'window': window, 
+                        'window': window,
                         'overbought': overbought,
                         'oversold': oversold,
+                        'total_pl': metrics['total_pl'],
+                        'cumulative_return': metrics['cumulative_return'],
                         'sharpe_ratio': metrics['sharpe_ratio'],
-                        'annual_return': metrics['annual_return'],
+                        'sortino_ratio': metrics['sortino_ratio'],
                         'max_drawdown': metrics['max_drawdown'],
-                        'calmar_ratio': metrics['calmar_ratio']
+                        'trades': metrics['trades'],
+                        'equity_curve': metrics['equity_curve']
                     })
-            
         return pd.DataFrame(results)
 
     def setup_parameters(self):
@@ -50,21 +53,13 @@ class RsiOptimizer(BaseOptimizer):
         print(f"Total combinations to test: {len(windows) * len(overbought_levels)}")
         return {'windows':windows, 'overbought_levels':overbought_levels, 'oversold_levels':oversold_levels}
     
-    def plot_results(self, results, metric1='sharpe_ratio', metric2='annual_return'):
-        """
-        Plot optimization results as heatmaps for RSI strategy.
-        
-        Args:
-            results (pd.DataFrame): Optimization results
-            metric1 (str): First metric to plot
-            metric2 (str): Second metric to plot
-        """
+    def plot_results(self, results, metric1='sharpe_ratio', metric2='total_pl'):
         fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(15, 16))
         
         # Plot first metric heatmap
         pivot1 = results.pivot(index='window', columns='overbought', values=metric1)
         im1 = ax1.imshow(pivot1, cmap='viridis', aspect='auto')
-        ax1.set_xlabel('Overbought Level')
+        ax1.set_xlabel('Overbought Threshold')
         ax1.set_ylabel('Window Size')
         ax1.set_title(f'{metric1.replace("_", " ").title()} Heatmap')
         plt.colorbar(im1, ax=ax1, label=metric1.replace("_", " ").title())
@@ -81,7 +76,7 @@ class RsiOptimizer(BaseOptimizer):
         # Plot second metric heatmap
         pivot2 = results.pivot(index='window', columns='overbought', values=metric2)
         im2 = ax2.imshow(pivot2, cmap='viridis', aspect='auto')
-        ax2.set_xlabel('Overbought Level')
+        ax2.set_xlabel('Overbought Threshold')
         ax2.set_ylabel('Window Size')
         ax2.set_title(f'{metric2.replace("_", " ").title()} Heatmap')
         plt.colorbar(im2, ax=ax2, label=metric2.replace("_", " ").title())

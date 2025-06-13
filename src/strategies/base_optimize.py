@@ -1,10 +1,11 @@
 import os
 import pandas as pd
-import numpy as np
 import yaml
 import matplotlib.pyplot as plt
 from abc import ABC, abstractmethod
 from pathlib import Path
+from typing import Any
+
 class BaseOptimizer(ABC):
     def __init__(self, strategy_class):
         """
@@ -14,15 +15,18 @@ class BaseOptimizer(ABC):
             strategy_class: The strategy class to optimize
         """
         self.strategy_class = strategy_class
-        
+    def _get_project_root(self) -> Path:
+        """Get the project root directory."""
+        return Path(__file__).parent.parent.parent
+    
     def load_config(self):
         """Load configuration from settings.yaml"""
-        config_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))), 'config', 'settings.yaml')
+        config_path = self._get_project_root() / 'config' / 'settings.yaml'
         with open(config_path, 'r') as file:
             return yaml.safe_load(file)
     
     @abstractmethod
-    def optimize_parameters(self, df, param_grid):
+    def optimize_parameters(self, df, param_grid) -> pd.DataFrame:
         """
         Optimize strategy parameters.
         
@@ -55,33 +59,19 @@ class BaseOptimizer(ABC):
         
         print(f"\nBest Parameters by {metric_name}:")
         for col in results.columns:
-            if col not in ['sharpe_ratio', 'annual_return', 'max_drawdown', 'calmar_ratio']:
+            if col not in ['total_pl', 'cumulative_return', 'sharpe_ratio', 'sortino_ratio', 'max_drawdown', 'trades', 'equity_curve']:
                 print(f"{col.replace('_', ' ').title()}: {best_params[col]}")
-        print(f"Sharpe Ratio: {best_params['sharpe_ratio']:.2f}")
-        print(f"Annual Return: {best_params['annual_return']:.2f}")
-        print(f"Max Drawdown: {best_params['max_drawdown']:.2f}")
-        print(f"Calmar Ratio: {best_params['calmar_ratio']:.2f}")
+        
+        print(f"Total P/L: {best_params['total_pl']:.2f}")
+        print(f"Cumulative Return: {best_params['cumulative_return']:.4f}")
+        print(f"Sharpe Ratio: {best_params['sharpe_ratio']:.4f}" if best_params['sharpe_ratio'] else "Sharpe Ratio: N/A")
+        print(f"Sortino Ratio: {best_params['sortino_ratio']:.4f}" if best_params['sortino_ratio'] else "Sortino Ratio: N/A")
+        print(f"Maximum Drawdown: {best_params['max_drawdown']:.4f}")
+        print(f"Number of Trades: {best_params['trades']}")
+        print(f"Final Equity: {best_params['equity_curve']:.2f}")
         
         return best_params
     
-    def save_results(self, results):
-        """
-        Save optimization results to CSV and generate plots.
-        
-        Args:
-            results (pd.DataFrame): Optimization results
-        """
-        results_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))), 'backtest', 'results')
-        os.makedirs(results_dir, exist_ok=True)
-        
-        # Save to CSV
-        results_file = os.path.join(results_dir, f'{self.strategy_class.__name__.lower()}_parameter_optimization_results.csv')
-        results.to_csv(results_file, index=False)
-        print(f"\nDetailed results saved to '{results_file}'")
-        
-        # Generate and save plot
-        self.plot_results(results)
-        print(f"Plot saved as '{os.path.join(results_dir, f'{self.strategy_class.__name__.lower()}_parameter_optimization.png')}'")
     
     def load_data(self, symbol) -> pd.DataFrame:
         data_path =  Path(__file__).parent .parent .parent / 'data' / f'{symbol}.csv'
@@ -122,18 +112,20 @@ class BaseOptimizer(ABC):
         
         # Run optimization
         results = self.optimize_parameters(df, param_grid)
-        
+        self.plot_results(results)
         # Print results
         self.print_best_parameters(results, "Sharpe Ratio", "sharpe_ratio")
-        self.print_best_parameters(results, "Annual Return", "annual_return")
-        self.print_best_parameters(results, "Minimum Drawdown", "max_drawdown", is_min=True)
-        self.print_best_parameters(results, "Calmar Ratio", "calmar_ratio")
+        self.print_best_parameters(results, "Total P/L", "total_pl")
+        self.print_best_parameters(results, "Maximum Drawdown", "max_drawdown", is_min=True)
+        self.print_best_parameters(results, "Cumulative Return", "cumulative_return")
+        self.print_best_parameters(results, "Sortino Ratio", "sortino_ratio")
+        self.print_best_parameters(results, "Number of Trades", "trades")
+        self.print_best_parameters(results, "Final Equity", "equity_curve")
         
-        # Save results
-        self.save_results(results)
 
+        # Save results
     @abstractmethod
-    def setup_parameters(self):
+    def setup_parameters(self) -> dict[str, Any]:
         """
         Setup the parameter grid for optimization.
         To be implemented by child classes.
