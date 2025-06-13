@@ -4,7 +4,7 @@ import numpy as np
 import yaml
 import matplotlib.pyplot as plt
 from abc import ABC, abstractmethod
-
+from pathlib import Path
 class BaseOptimizer(ABC):
     def __init__(self, strategy_class):
         """
@@ -83,23 +83,29 @@ class BaseOptimizer(ABC):
         self.plot_results(results)
         print(f"Plot saved as '{os.path.join(results_dir, f'{self.strategy_class.__name__.lower()}_parameter_optimization.png')}'")
     
-    def load_data(self, filename):
-        """
-        Load and prepare the price data for optimization.
+    def load_data(self, symbol) -> pd.DataFrame:
+        data_path =  Path(__file__).parent .parent .parent / 'data' / f'{symbol}.csv'
+        print(data_path)
+        if not data_path.exists():
+            raise FileNotFoundError(f"Data file not found: {data_path}")
         
-        Args:
-            filename (str): Name of the data file
-            
-        Returns:
-            pd.DataFrame: Prepared DataFrame with price data
-        """
-        data_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))), 'data', filename)
         df = pd.read_csv(data_path)
-        df = df.rename(columns={
-            'Date': 'datetime',
-            'Close': 'close'
-        })
-        return df 
+        
+        # Validate and rename columns
+        required_columns = ['datetime', 'close']
+        column_mapping = {'Date': 'datetime', 'Close': 'close'}
+        
+        missing_columns = [col for col in required_columns if col not in df.columns]
+        if missing_columns:
+            raise ValueError(f"Missing required columns: {missing_columns}")
+        
+        df = df.rename(columns=column_mapping)
+        
+        # Convert datetime if needed
+        if isinstance(df['datetime'].iloc[0], str):
+            df['datetime'] = pd.to_datetime(df['datetime'])
+        
+        return df
 
     def main(self, data_filename):
         """

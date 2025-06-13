@@ -22,8 +22,9 @@ class PerformanceMetrics:
         df['bnh_cumu'] = df['chg'].cumsum()
         
         # Basic metrics
-        sharpe = round(df['pnl'].mean() / df['pnl'].std() * np.sqrt(365*24), 2)
-        annual_return = round(df['pnl'].mean() * 365, 2)
+        sharpe = round(df['pnl'].mean() / df['pnl'].std() * np.sqrt(24*365), 2)
+        annual_return = round(df['pnl'].mean() * 24*365, 2)
+        
         mdd = df['dd'].max()
         calmar = round(annual_return / mdd, 2) if mdd != 0 else 0
         

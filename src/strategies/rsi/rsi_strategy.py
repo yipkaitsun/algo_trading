@@ -10,8 +10,8 @@ from src.utils.performance_metrics import PerformanceMetrics
 
 logger = logging.getLogger(__name__)
 
-class RSIStrategy(BaseStrategy):
-    def __init__(self, window=14, overbought=70, oversold=30, position_size=1.0):
+class RsiStrategy(BaseStrategy):
+    def __init__(self, window, overbought, oversold, position_size):
         self.window = window
         self.overbought = overbought  # Default value
         self.oversold = oversold  # Default value
@@ -74,6 +74,3 @@ class RSIStrategy(BaseStrategy):
     
     def calculate_position_size(self, signal: int, price: float) -> float:
         return self.position_size * (self.current_capital / price)
-    
-    def calculate_performance_metrics(self, data: pd.DataFrame) -> Dict[str, float]:
-        return PerformanceMetrics.calculate_metrics(data)

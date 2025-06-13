@@ -4,24 +4,22 @@ import numpy as np
 import yaml
 import matplotlib.pyplot as plt
 from ..base_optimize import BaseOptimizer
-from src.strategies.rsi.rsi_strategy import RSIStrategy
+from .rsi_strategy import RsiStrategy
 
 class RsiOptimizer(BaseOptimizer):
     def __init__(self):
-        super().__init__(RSIStrategy)
+        super().__init__(RsiStrategy)
     
     def optimize_parameters(self, df, param_grid):
         results = []
         
         for window in param_grid['windows']:
             # Create strategy instance with current window size
-            strategy = RSIStrategy(window=window)
-            
-            # Calculate indicators once for this window size
-            df_test = df.copy()
-            df_test = strategy.calculate_indicators(df_test)
-            
             for overbought, oversold in zip(param_grid['overbought_levels'], param_grid['oversold_levels']):
+                    
+                    strategy = RsiStrategy(window=window, overbought=overbought, oversold=oversold, position_size=0.1)
+                    df_test = df.copy()
+                    df_test = strategy.calculate_indicators(df_test)
                     # Generate signals with current thresholds
                     df_signals = strategy.generate_signals(df_test, overbought=overbought, oversold=oversold) # type: ignore
                     
@@ -88,9 +86,14 @@ class RsiOptimizer(BaseOptimizer):
         ax2.set_title(f'{metric2.replace("_", " ").title()} Heatmap')
         plt.colorbar(im2, ax=ax2, label=metric2.replace("_", " ").title())
         
-        # Set y-axis ticks
+        # Set x and y axis ticks with actual values
+        ax1.set_xticks(range(len(pivot1.columns)))
+        ax1.set_xticklabels(pivot1.columns)
         ax1.set_yticks(range(len(pivot1.index)))
         ax1.set_yticklabels(pivot1.index)
+        
+        ax2.set_xticks(range(len(pivot2.columns)))
+        ax2.set_xticklabels(pivot2.columns)
         ax2.set_yticks(range(len(pivot2.index)))
         ax2.set_yticklabels(pivot2.index)
         
@@ -108,9 +111,8 @@ class RsiOptimizer(BaseOptimizer):
         plt.close()
 
 def main():
-    data_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))), 'data', 'BTC_HOURLY.csv')
     optimizer = RsiOptimizer()
-    optimizer.main(data_path)
+    optimizer.main('btcusdt_3year_hourly_binance')
 
 
 if __name__ == "__main__":

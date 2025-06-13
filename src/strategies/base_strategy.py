@@ -8,6 +8,7 @@ import pandas as pd
 import numpy as np
 import logging
 from datetime import datetime
+from src.utils.performance_metrics import PerformanceMetrics
 
 logger = logging.getLogger(__name__)
 
@@ -87,21 +88,11 @@ class BaseStrategy(ABC):
             pd.DataFrame: Data with signal column
         """
         pass
-    
-    @abstractmethod
+
     def calculate_performance_metrics(self, data: pd.DataFrame) -> Dict[str, float]:
-        """
-        Calculate strategy performance metrics.
-        This method must be implemented by all strategy classes.
-        
-        Args:
-            data (pd.DataFrame): Market data with signals
-            
-        Returns:
-            Dict[str, float]: Dictionary of performance metrics
-        """
-        pass
+        return PerformanceMetrics.calculate_metrics(data)
     
+
     # ============= Concrete Methods (Implemented in base class) =============
     
     def run(self, data: pd.DataFrame) -> Dict[str, Any]:

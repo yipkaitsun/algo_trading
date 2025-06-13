@@ -4,22 +4,20 @@ import numpy as np
 import yaml
 import matplotlib.pyplot as plt
 from ..base_optimize import BaseOptimizer
-from src.strategies.zscore.zscore_strategy import ZScoreStrategy
+from .zscore_strategy import ZscoreStrategy
 
 
 class ZScoreOptimizer(BaseOptimizer):
     def __init__(self):
-        super().__init__(ZScoreStrategy)
+        super().__init__(ZscoreStrategy)
     
     def optimize_parameters(self, df, param_grid):
         results = []
         
         for window in param_grid['windows']:
-            strategy = ZScoreStrategy(window=window)
             for threshold in param_grid['thresholds']:
-                # Create strategy instance with current window size
-                
-                # Calculate indicators and signals
+                strategy = ZscoreStrategy(window=window, threshold=threshold, position_size=0.1)
+
                 df_test = df.copy()
                 df_test = strategy.calculate_indicators(df_test)
                 df_test = strategy.generate_signals(df_test, threshold=threshold)
@@ -92,9 +90,14 @@ class ZScoreOptimizer(BaseOptimizer):
         ax2.set_title(f'{metric2.replace("_", " ").title()} Heatmap')
         plt.colorbar(im2, ax=ax2, label=metric2.replace("_", " ").title())
         
-        # Set y-axis ticks
+        # Set x and y axis ticks with actual values
+        ax1.set_xticks(range(len(pivot1.columns)))
+        ax1.set_xticklabels(pivot1.columns)
         ax1.set_yticks(range(len(pivot1.index)))
         ax1.set_yticklabels(pivot1.index)
+        
+        ax2.set_xticks(range(len(pivot2.columns)))
+        ax2.set_xticklabels(pivot2.columns)
         ax2.set_yticks(range(len(pivot2.index)))
         ax2.set_yticklabels(pivot2.index)
         
@@ -113,10 +116,9 @@ class ZScoreOptimizer(BaseOptimizer):
 
 def main():
     # Initialize optimizer
-    data_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))), 'data', 'BTC_HOURLY.csv')
     optimizer = ZScoreOptimizer()
     # Run optimization
-    optimizer.main(data_path)
+    optimizer.main('btcusdt_3year_hourly_binance')
 
 if __name__ == "__main__":
     main() 

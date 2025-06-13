@@ -10,8 +10,7 @@ from typing import Dict, Any
 if __name__ == "__main__":
     src_path = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     sys.path.append(src_path)
-
-from strategies.rsi.rsi_strategy import RSIStrategy
+from .rsi_strategy import RsiStrategy
 from strategies.base_backtest import BaseBacktest
 
 # Configure logging
@@ -53,7 +52,7 @@ class RsiBacket(BaseBacktest):
     def initialize_strategy(self) -> None:
         """Initialize the ZScore strategy with configuration."""
         strategy_config = self.load_config()
-        self.strategy  = RSIStrategy(
+        self.strategy  = RsiStrategy(
             window=strategy_config['window'],
             overbought=strategy_config['overbought'],
             oversold=strategy_config['oversold'],
@@ -61,7 +60,7 @@ class RsiBacket(BaseBacktest):
     )
     
     
-    def load_data(self, symbol: str= 'BTC_HOURLY') -> pd.DataFrame:
+    def load_data(self, symbol) -> pd.DataFrame:
         data_path =  Path(__file__).parent.parent.parent.parent / 'data' / f'{symbol}.csv'
         
         if not data_path.exists():
@@ -90,7 +89,7 @@ class RsiBacket(BaseBacktest):
 def main():
     """Main execution function."""
     backtest = RsiBacket()
-    backtest.run_backtest()
+    backtest.run_backtest('btcusdt_3year_hourly_binance')
 
 if __name__ == "__main__":
     main() 

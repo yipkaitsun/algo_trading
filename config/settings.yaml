@@ -1,33 +1,19 @@
-# Trading Strategy Configuration
-active_strategies:
-  - name: "zscore"
-    module: "strategies.zscore_strategy"
-    class: "ZScoreStrategy"
-  - name: "rsi"
-    module: "strategies.rsi_strategy"
-    class: "RSIStrategy"
+alpha_vantage_api_key: 12NGKM9P6N4YJ2Z5
 
+# Trading System State Configuration
+system_state:
+  mode: "live"  # Options: "live", "backtest", "paper"
+  active_strategies:
+    - "zscore"  
+    - "rsi"
+
+# Trading Strategy Configuration
 strategies:
   # Z-Score Strategy Parameters
   zscore:
-    # Core Parameters
     window: 50
     threshold: 2.0
     position_size: 0.1
-    
-    # Signal Generation
-    signal_type: "zscore"  # Options: "zscore", "mean_reversion"
-    entry_threshold: 1.6
-    exit_threshold: 0.0
-    
-    # Risk Management
-    stop_loss: 0.03  # 3% stop loss
-    take_profit: 0.02  # 2% take profit
-    max_position_size: 0.1  # Maximum 10% of portfolio per position
-    
-    # Performance Tracking
-    track_trades: true
-    save_trade_history: true
 
   # RSI Strategy Parameters
   rsi:
@@ -36,67 +22,3 @@ strategies:
     overbought: 20
     oversold: 80
     position_size: 0.1
-    
-    # Risk Management
-    stop_loss: 0.03  # 3% stop loss
-    take_profit: 0.02  # 2% take profit
-    max_position_size: 0.1  # Maximum 10% of portfolio per position
-    
-    # Performance Tracking
-    track_trades: true
-    save_trade_history: true
-
-# Signal Combination Configuration
-signal_combination:
-  type: "all_agree"  # Options: "all_agree", "majority_vote"
-
-# Data Configuration
-data:
-  # Data source configuration
-  source: "csv"  # Options: csv, api, database
-  symbols:
-    - "BTC"
-  timeframe: "1h"  # Hourly timeframe
-  start_date: "2023-01-01"
-  end_date: "2024-01-01"
-  
-  # Data Processing
-  required_columns:
-    - "datetime"
-    - "close"
-    - "high"
-    - "low"
-    - "volume"
-
-# Trading Parameters
-trading:
-  initial_capital: 100000
-  commission: 0.001  # 0.1% commission per trade
-  slippage: 0.0005  # 0.05% slippage
-  leverage: 1.0  # No leverage by default
-
-# Backtest Configuration
-backtest:
-  # Output Settings
-  save_results: true
-  results_directory: "backtest/results"
-  save_trade_history: true
-  
-  # Performance Metrics
-  calculate_metrics:
-    - "sharpe_ratio"
-    - "annual_return"
-    - "max_drawdown"
-    - "calmar_ratio"
-    - "win_rate"
-    - "profit_factor"
-    - "sortino_ratio"
-
-# Logging Configuration
-logging:
-  level: "INFO"
-  file: "logs/trading.log"
-  console: true
-  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-  max_file_size: 10485760  # 10MB
-  backup_count: 5

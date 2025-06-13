@@ -37,10 +37,32 @@ class BaseBacktest(ABC):
         """Initialize the strategy with configuration."""
         pass
     
-    @abstractmethod
-    def load_data(self, symbol: str) -> pd.DataFrame:
-        """Load and preprocess the data."""
-        pass
+    def load_data(self, symbol) -> pd.DataFrame:
+        data_path =  Path(__file__).parent.parent.parent / 'data' / f'{symbol}.csv'
+        
+        if not data_path.exists():
+            raise FileNotFoundError(f"Data file not found: {data_path}")
+        
+        logger.info(f"Loading data from {data_path}")
+        df = pd.read_csv(data_path)
+        
+        # Validate and rename columns
+        required_columns = ['datetime', 'close']
+        column_mapping = {'Date': 'datetime', 'Close': 'close'}
+        
+        missing_columns = [col for col in required_columns if col not in df.columns]
+        if missing_columns:
+            raise ValueError(f"Missing required columns: {missing_columns}")
+        
+        df = df.rename(columns=column_mapping)
+        
+        # Convert datetime if needed
+        if isinstance(df['datetime'].iloc[0], str):
+            df['datetime'] = pd.to_datetime(df['datetime'])
+        
+        logger.info(f"Successfully loaded {len(df)} rows of data")
+        return df
+
     
     def calculate_indicators(self, df: pd.DataFrame) -> pd.DataFrame:
         return self.strategy.calculate_indicators(df)
@@ -102,7 +124,7 @@ class BaseBacktest(ABC):
                 if not param_name.startswith('_'):  # Skip private attributes
                     logger.info(f"{param_name}: {param_value}")
 
-    def run_backtest(self, symbol: str = 'BTC_HOURLY') -> None:
+    def run_backtest(self, symbol) -> None:
         """Run the backtest with common flow for all strategies."""
         # Initialize strategy
         self.initialize_strategy()
@@ -115,11 +137,11 @@ class BaseBacktest(ABC):
         df = self.generate_signals(df)
         
         # Calculate returns
-        df = CalculationUtils.calculate_returns(df)
+        # df = CalculationUtils.calculate_returns(df)
         
         # Save results and plot
-        self.save_results(df)
-        self.plot_cumulative_return(df)
+        # self.save_results(df)
+        # self.plot_cumulative_return(df)
         
         # Calculate and save performance metrics
         metrics = self.strategy.calculate_performance_metrics(df)
