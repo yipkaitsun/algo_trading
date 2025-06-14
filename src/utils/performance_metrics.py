@@ -65,7 +65,6 @@ class PerformanceMetrics:
         df = data.copy()
         prices = df['close']
         signals = df['signal']
-
         cash = initial_capital
         shares = 0
         holding = False

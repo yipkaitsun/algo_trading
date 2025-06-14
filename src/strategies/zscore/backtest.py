@@ -39,7 +39,7 @@ class ZScoreBacktest(BaseBacktest):
 def main():
     """Main execution function."""
     backtest = ZScoreBacktest()
-    backtest.run_backtest('btcusdt_3year_hourly_binance')
+    backtest.run_backtest('BTCUSDT')
 
 if __name__ == "__main__":
     main() 

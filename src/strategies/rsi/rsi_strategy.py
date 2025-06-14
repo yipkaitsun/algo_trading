@@ -22,40 +22,42 @@ class RsiStrategy(BaseStrategy):
         required_columns = ['close']
         return all(col in data.columns for col in required_columns)
         
-    def calculate_indicators(self, data: pd.DataFrame) -> pd.DataFrame:
+
+    
+    def generate_signals(self, data: pd.DataFrame) -> pd.DataFrame:
+        data['signal'] = data['rsi'].apply(lambda z: self.calculate_signals({'rsi': z}))
+        return data
+
+    def calculate_last_window_indicators(self, data: pd.DataFrame) -> Dict[str, float]:
         if not self.validate_data(data):
             raise ValueError("Input data missing required columns")
-            
-        df = data.copy()
+        last_window = data.tail(self.window)
+        df = self.calculate_indicator(last_window)
+        rsi = df['rsi'].iloc[-1]
+        return {'rsi': rsi}
+
+    def calculate_signals(self, data: Dict[str, Any]):
+        return 1 if data['rsi'] > self.oversold else 0
+    
+    def calculate_indicator(self, df: pd.DataFrame)->  pd.DataFrame:
+        df = df.copy()  # Create an explicit copy to avoid the warning
         
         # Calculate price changes
-        df['delta'] = df['close'].diff()
-        
+        df.loc[:, 'delta'] = df['close'].diff()
+
         # Separate gains and losses
-        df['gain'] = df['delta'].where(df['delta'] > 0, 0)
-        df['loss'] = -df['delta'].where(df['delta'] < 0, 0)
+        df.loc[:, 'gain'] = df['delta'].where(df['delta'] > 0, 0)
+        df.loc[:, 'loss'] = -df['delta'].where(df['delta'] < 0, 0)
         
         # Calculate average gains and losses
-        df['avg_gain'] = df['gain'].rolling(window=self.window).mean()
-        df['avg_loss'] = df['loss'].rolling(window=self.window).mean()
+        df.loc[:, 'avg_gain'] = df['gain'].rolling(window=self.window).mean()
+        df.loc[:, 'avg_loss'] = df['loss'].rolling(window=self.window).mean()
         
         # Calculate RS and RSI
-        df['rs'] = df['avg_gain'] / df['avg_loss']
-        df['rsi'] = 100 - (100 / (1 + df['rs']))
+        df.loc[:, 'rs'] = df['avg_gain'] / df['avg_loss']
+        df.loc[:, 'rsi'] = 100 - (100 / (1 + df['rs']))
         
         # Calculate price change for performance metrics
-        df['chg'] = df['close'].pct_change()
-        
+        df.loc[:, 'chg'] = df['close'].pct_change()
         return df
-    
-    def generate_signals(self, data: pd.DataFrame, overbought: Optional[int] =None, oversold: Optional[int] =None) -> pd.DataFrame:
-
-        df = data.copy()
         
-        overbought = overbought if overbought is not None else self.overbought
-        oversold = oversold if oversold is not None else self.oversold
-        
-        df['signal'] = 0
-        df.loc[df['rsi'] > oversold, 'signal'] = 1
-        
-        return df

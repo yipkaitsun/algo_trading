@@ -1,9 +1,7 @@
 """
 Abstract base class for trading strategies.
 """
-import os
 import pandas as pd
-import yaml
 from abc import ABC, abstractmethod
 from typing import Dict, Any
 import logging
@@ -52,21 +50,21 @@ class BaseStrategy(ABC):
             bool: True if data is valid, False otherwise
         """
         pass
-    
+
+
     @abstractmethod
-    def calculate_indicators(self, data: pd.DataFrame) -> pd.DataFrame:
-        """
-        Calculate technical indicators for the strategy.
-        This method must be implemented by all strategy classes.
-        
-        Args:
-            data (pd.DataFrame): Market data
-            
-        Returns:
-            pd.DataFrame: Data with calculated indicators
-        """
+    def calculate_indicator(self, data: pd.DataFrame) -> pd.DataFrame:
         pass
-    
+
+
+    @abstractmethod
+    def calculate_last_window_indicators(self, data: pd.DataFrame) -> Dict[str, float]:
+        pass
+
+    @abstractmethod
+    def calculate_signals(self, data: Dict[str, Any]) -> int:
+        pass
+
     @abstractmethod
     def generate_signals(self, data: pd.DataFrame) -> pd.DataFrame:
         """
@@ -104,7 +102,6 @@ class BaseStrategy(ABC):
             return self._get_empty_results()
         try:
             data_with_indicators = self.calculate_indicators(data)
-            
             # Generate signals
             
             data_with_signals = self.generate_signals(data_with_indicators)
@@ -132,5 +129,8 @@ class BaseStrategy(ABC):
             }
         }
 
-    
-   
+    def calculate_indicators(self, data: pd.DataFrame) -> pd.DataFrame:
+        if not self.validate_data(data):
+            raise ValueError("Input data missing required columns")
+        df = self.calculate_indicator(data.copy())
+        return df

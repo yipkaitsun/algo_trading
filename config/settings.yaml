@@ -1,5 +1,19 @@
-alpha_vantage_api_key: 12NGKM9P6N4YJ2Z5
 initial_capital: 10000
+
+# Database Configuration
+database:
+  host: "localhost"
+  port: 5432
+  database: "algo_trade_db"
+  username: "user"
+  password: "user"
+  # database:
+  # host: "ykt-piserver.zapto.org"
+  # port: 5432
+  # database: "algo_trade_db"
+  # username: "kaitsunyip"
+  # password: "P@ssword1"
+
 # Trading System State Configuration
 system_state:
   mode: "live"  # Options: "live", "backtest", "paper"

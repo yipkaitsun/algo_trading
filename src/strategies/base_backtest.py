@@ -4,6 +4,7 @@ from typing import  Any
 from pathlib import Path
 import logging
 from src.strategies.base_strategy import BaseStrategy
+from src.data.fetcher import DataFetcher
 import yaml
 
 logger = logging.getLogger(__name__)
@@ -36,30 +37,7 @@ class BaseBacktest(ABC):
         pass
     
     def load_data(self, symbol) -> pd.DataFrame:
-        data_path =  Path(__file__).parent.parent.parent / 'data' / f'{symbol}.csv'
-        
-        if not data_path.exists():
-            raise FileNotFoundError(f"Data file not found: {data_path}")
-        
-        logger.info(f"Loading data from {data_path}")
-        df = pd.read_csv(data_path)
-        
-        # Validate and rename columns
-        required_columns = ['datetime', 'close']
-        column_mapping = {'Date': 'datetime', 'Close': 'close'}
-        
-        missing_columns = [col for col in required_columns if col not in df.columns]
-        if missing_columns:
-            raise ValueError(f"Missing required columns: {missing_columns}")
-        
-        df = df.rename(columns=column_mapping)
-        
-        # Convert datetime if needed
-        if isinstance(df['datetime'].iloc[0], str):
-            df['datetime'] = pd.to_datetime(df['datetime'])
-        
-        logger.info(f"Successfully loaded {len(df)} rows of data")
-        return df
+        return DataFetcher.fetch_data_ssh(symbol=symbol)
     
     def save_performance_metrics(self, metrics: Any) -> None:
         """Print performance metrics to console."""

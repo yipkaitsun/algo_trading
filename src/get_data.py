@@ -1,8 +1,7 @@
 import requests
 import csv
 import time
-from datetime import datetime
-import pandas as pd
+from datetime import datetime, timezone
 from dateutil.relativedelta import relativedelta
 from pathlib import Path
 import logging
@@ -34,10 +33,10 @@ def fetch_kline_data(symbol, interval, start_time_ms, end_time_ms, limit=1000):
         return None
 
 # Main script to fetch 3 years of hourly data
-def fetch_3year_hourly_data_csv(symbol="BTCUSDT", interval="1h"):
+def fetch_3year_hourly_data_csv(symbol, interval="1h"):
     """Fetch 3 years of hourly data and save to CSV"""
     # Use UTC time for consistency
-    end_date = datetime.utcnow()
+    end_date = datetime.now(timezone.utc)
     start_date = end_date - relativedelta(years=3)
     # Round start_date to the nearest hour
     start_date = start_date.replace(minute=0, second=0, microsecond=0)
@@ -45,11 +44,11 @@ def fetch_3year_hourly_data_csv(symbol="BTCUSDT", interval="1h"):
     end_time_ms = to_unix_timestamp_ms(end_date)
     
     # Initialize CSV output file
-    output_file = Path(__file__).parent.parent / 'data' / 'btcusdt_3year_hourly_binance.csv'
+    output_file = Path(__file__).parent.parent / 'data' / f'{symbol}_3year_hourly_binance.csv'
     # Create data directory if it doesn't exist
     output_file.parent.mkdir(parents=True, exist_ok=True)
     
-    header = ["timestamp", "open", "high", "low", "close", "volume"]
+    header = ["datetime", "open", "high", "low", "close", "volume"]
     total_rows = 0
     
     # Use a dictionary to store the latest data for each timestamp
@@ -75,7 +74,11 @@ def fetch_3year_hourly_data_csv(symbol="BTCUSDT", interval="1h"):
                 break
         else:
             logger.error(f"No data for {current_start_ms}")
-            break
+            # Retry from 1 hour ago
+            retry_time = datetime.fromtimestamp(current_start_ms/1000) - relativedelta(hours=1)
+            current_start_ms = to_unix_timestamp_ms(retry_time)
+            logger.info(f"Retrying from 1 hour ago: {retry_time.strftime('%Y-%m-%d %H:%M:%S')}")
+            continue
         # Respect rate limits (1200 requests/minute ≈ 20 requests/second)
         time.sleep(0.05)  # 50ms delay
     
@@ -94,4 +97,4 @@ def fetch_3year_hourly_data_csv(symbol="BTCUSDT", interval="1h"):
 
 # Execute the script
 if __name__ == "__main__":
-    fetch_3year_hourly_data_csv()
+    fetch_3year_hourly_data_csv("BTCUSDT")
